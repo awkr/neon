@@ -14,18 +14,20 @@ static void keyCallback(GLFWwindow *window, int key, int scancode, int action, i
   }
 }
 
-enum { Triangle, NumVao };
+enum { VAO_TRIANGLE, VAO_COUNT };
 
-enum { VertexBuffer, NumBuffer };
+enum { VBO_TRIANGLE, VBO_COUNT };
+
+enum { EBO_TRIANGLE, EBO_COUNT };
 
 enum {
   vPosition = 0,
 };
 
-GLuint vaos[NumVao];
-GLuint buffers[NumBuffer];
+GLuint vaos[VAO_COUNT];
+GLuint buffers[VBO_COUNT];
+GLuint ebos[VBO_COUNT];
 const GLuint kNumVertices = 6;
-GLuint ebo;
 
 GLuint makeShader(GLuint sType, const GLchar *shaderStr) {
   GLuint shader = glCreateShader(sType);
@@ -47,14 +49,14 @@ GLuint makeShader(GLuint sType, const GLchar *shaderStr) {
 }
 
 void init() {
-  glGenVertexArrays(NumVao, vaos);
-  glBindVertexArray(vaos[Triangle]);
+  glGenVertexArrays(VAO_COUNT, vaos);
+  glBindVertexArray(vaos[VAO_TRIANGLE]);
 
   GLfloat vertices[kNumVertices][2] = {{-0.90, -0.90}, {0.85, -0.90}, {-0.90, 0.85},
                                        {0.90, -0.85},  {0.90, 0.90},  {-0.85, 0.90}};
 
-  glGenBuffers(NumBuffer, buffers);
-  glBindBuffer(GL_ARRAY_BUFFER, buffers[VertexBuffer]);
+  glGenBuffers(VBO_COUNT, buffers);
+  glBindBuffer(GL_ARRAY_BUFFER, buffers[VBO_TRIANGLE]);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   uint indices[6] = {// Triangle 1
@@ -62,8 +64,8 @@ void init() {
                      // Triangle 2
                      3, 4, 5};
 
-  glGenBuffers(1, &ebo);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  glGenBuffers(EBO_COUNT, ebos);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebos[EBO_TRIANGLE]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
   const GLchar *vertShaderStr = R"(
@@ -116,7 +118,7 @@ void main() {
 
 void display() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glBindVertexArray(vaos[Triangle]);
+  glBindVertexArray(vaos[VAO_TRIANGLE]);
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   glFlush();
 }
