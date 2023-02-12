@@ -25,6 +25,7 @@ enum {
 GLuint vaos[NumVao];
 GLuint buffers[NumBuffer];
 const GLuint kNumVertices = 6;
+GLuint ebo;
 
 GLuint makeShader(GLuint sType, const GLchar *shaderStr) {
   GLuint shader = glCreateShader(sType);
@@ -49,18 +50,21 @@ void init() {
   glGenVertexArrays(NumVao, vaos);
   glBindVertexArray(vaos[Triangle]);
 
-  GLfloat vertices[kNumVertices][2] = {// Triangle 1
-                                       {-0.90, -0.90},
-                                       {0.85, -0.90},
-                                       {-0.90, 0.85},
-                                       // Triangle 2
-                                       {0.90, -0.85},
-                                       {0.90, 0.90},
-                                       {-0.85, 0.90}};
+  GLfloat vertices[kNumVertices][2] = {{-0.90, -0.90}, {0.85, -0.90}, {-0.90, 0.85},
+                                       {0.90, -0.85},  {0.90, 0.90},  {-0.85, 0.90}};
 
   glGenBuffers(NumBuffer, buffers);
   glBindBuffer(GL_ARRAY_BUFFER, buffers[VertexBuffer]);
-  glBufferData(GL_ARRAY_BUFFER, sizeof vertices, vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  uint indices[6] = {// Triangle 1
+                     0, 1, 2,
+                     // Triangle 2
+                     3, 4, 5};
+
+  glGenBuffers(1, &ebo);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
   const GLchar *vertShaderStr = R"(
 #version 410 core
@@ -101,7 +105,7 @@ void main() {
 
   glUseProgram(program);
 
-  glVertexAttribPointer(vPosition, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+  glVertexAttribPointer(vPosition, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), BUFFER_OFFSET(0));
   glEnableVertexAttribArray(vPosition);
 
   // The call to glVertexAttribPointer already registered `VBO_TRIANGLE` as the vertex attribute's
@@ -113,7 +117,7 @@ void main() {
 void display() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glBindVertexArray(vaos[Triangle]);
-  glDrawArrays(GL_TRIANGLES, 0, kNumVertices);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   glFlush();
 }
 
