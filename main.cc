@@ -14,6 +14,12 @@ static void keyCallback(GLFWwindow *window, int key, int scancode, int action, i
   }
 }
 
+static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[]) {
+  for (uint i = 0; i < pathCount; ++i) {
+    fprintf(stdout, "drop: %s\n", paths[i]);
+  }
+}
+
 enum { VAO_TRIANGLE, VAO_COUNT };
 
 enum { VBO_TRIANGLE, VBO_COUNT };
@@ -141,6 +147,7 @@ int main() {
   }
 
   glfwSetKeyCallback(window, keyCallback);
+  glfwSetDropCallback(window, dropCallback);
 
   glfwMakeContextCurrent(window);
 
