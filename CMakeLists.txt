@@ -9,9 +9,11 @@ add_subdirectory(third-party/glfw)
 
 find_package(OpenGL REQUIRED)
 
+add_subdirectory(third-party/stb)
+
 add_executable(${PROJECT_NAME} main.cc filesystem.cc shader.cc)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw ${OPENGL_gl_LIBRARY})
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw ${OPENGL_gl_LIBRARY} stb)
 if (APPLE)
     if (IOS)
         target_compile_definitions(${PROJECT_NAME} PRIVATE GLES_SILENCE_DEPRECATION)
