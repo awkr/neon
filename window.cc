@@ -4,8 +4,6 @@
 #define GLFW_INCLUDE_GLCOREARB
 #include <GLFW/glfw3.h>
 
-#include "context.h"
-
 static void errorCallback(int error, const char *note) { fprintf(stderr, "error: %s\n", note); }
 
 static void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
@@ -20,7 +18,7 @@ static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[])
   }
 }
 
-bool window_create(Context *context) {
+bool window_create(GLFWwindow **window) {
   glfwSetErrorCallback(errorCallback);
   if (!glfwInit()) { return false; }
 
@@ -29,17 +27,17 @@ bool window_create(Context *context) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 
-  auto window = glfwCreateWindow(640, 480, "neon", nullptr, nullptr);
-  if (!window) {
+  auto handle = glfwCreateWindow(640, 480, "neon", nullptr, nullptr);
+  if (!handle) {
     glfwTerminate();
     return false;
   }
-  context->window = window;
+  *window = handle;
 
-  glfwSetKeyCallback(window, keyCallback);
-  glfwSetDropCallback(window, dropCallback);
+  glfwSetKeyCallback(handle, keyCallback);
+  glfwSetDropCallback(handle, dropCallback);
 
-  glfwMakeContextCurrent(window);
+  glfwMakeContextCurrent(handle);
 
   std::cout << "OpenGL Vendor:" << glGetString(GL_VENDOR) << std::endl;
   std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;

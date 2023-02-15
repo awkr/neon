@@ -40,8 +40,8 @@ void init(Context *context) {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebos[EBO_TRIANGLE]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-  auto ok = program_create({{GL_VERTEX_SHADER, "shader.vert"}, {GL_FRAGMENT_SHADER, "shader.frag"}},
-                           &context->program);
+  auto ok = program_create(
+      &context->program, {{GL_VERTEX_SHADER, "shader.vert"}, {GL_FRAGMENT_SHADER, "shader.frag"}});
   assert(ok);
 
   program_use(context->program);
@@ -71,7 +71,7 @@ void display(Context *context) {
 int main() {
   Context context{};
 
-  if (!window_create(&context)) { return EXIT_FAILURE; }
+  if (!window_create(&context.window)) { return EXIT_FAILURE; }
 
   init(&context);
 

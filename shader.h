@@ -4,6 +4,6 @@
 #include <utility>
 #include <vector>
 
-bool program_create(const std::vector<std::pair<GLuint, const char *>> &files, GLuint *outProgram);
+bool program_create(GLuint *program, const std::vector<std::pair<GLuint, const char *>> &files);
 void program_use(GLuint program);
 void program_destroy(GLuint program);
