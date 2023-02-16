@@ -58,3 +58,5 @@ bool window_should_close(GLFWwindow *window) { return glfwWindowShouldClose(wind
 void window_poll_events(GLFWwindow *window) { glfwPollEvents(); }
 
 void window_swap_buffers(GLFWwindow *window) { glfwSwapBuffers(window); }
+
+f64 window_get_time() { return glfwGetTime(); }

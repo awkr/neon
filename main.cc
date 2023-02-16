@@ -2,6 +2,9 @@
 #include "shader.h"
 #include "texture.h"
 #include "window.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
 enum { VAO_TRIANGLE, VAO_COUNT };
@@ -30,10 +33,10 @@ void init(Context *context) {
   glBindVertexArray(vaos[VAO_TRIANGLE]);
 
   Vertex vertices[kNumVertices] = {
-      {{-0.90, -0.90}, {0.0, 0.0}}, // Left bottom
-      {{0.90, -0.90}, {1.0, 0.0}},  // Right bottom
-      {{-0.90, 0.90}, {0.0, 1.0}},  // Left top
-      {{0.90, 0.90}, {1.0, 1.0}},   // Right top
+      {{-0.5f, -0.5f}, {0.0, 0.0}}, // Left bottom
+      {{0.5f, -0.5f}, {1.0, 0.0}},  // Right bottom
+      {{-0.5f, 0.5f}, {0.0, 1.0}},  // Left top
+      {{0.5f, 0.5f}, {1.0, 1.0}},   // Right top
   };
 
   glGenBuffers(VBO_COUNT, buffers);
@@ -83,6 +86,16 @@ void display(Context *context) {
   glBindVertexArray(vaos[VAO_TRIANGLE]);
   program_use(context->program);
   texture_bind(context->texture, 0);
+
+  {
+    glm::mat4 trans(1.0f);
+    // Rotate first then translate
+    trans = glm::translate(trans, glm::vec3(0.0f, 0.5f, 0.0f));
+    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+    program_set_mat4f(context->program, "transform", glm::value_ptr(trans));
+  }
+
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   glFlush();
 }

@@ -100,3 +100,7 @@ void program_set_f32(GLuint program, const char *name, f32 a) {
 void program_set_bool(GLuint program, const char *name, bool a) {
   glUniform1i(program_get_uniform_location(program, name), a);
 }
+
+void program_set_mat4f(GLuint program, const char *name, const GLfloat *a) {
+  glUniformMatrix4fv(program_get_uniform_location(program, name), 1, GL_FALSE, a);
+}
