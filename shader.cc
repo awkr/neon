@@ -84,3 +84,19 @@ bool program_create(GLuint *program, const std::vector<GLuint> &shaders) {
   *program = handle;
   return true;
 }
+
+GLint program_get_uniform_location(GLuint program, const char *name) {
+  return glGetUniformLocation(program, name);
+}
+
+void program_set_i32(GLuint program, const char *name, i32 a) {
+  glUniform1i(program_get_uniform_location(program, name), a);
+}
+
+void program_set_f32(GLuint program, const char *name, f32 a) {
+  glUniform1f(program_get_uniform_location(program, name), a);
+}
+
+void program_set_bool(GLuint program, const char *name, bool a) {
+  glUniform1i(program_get_uniform_location(program, name), a);
+}
