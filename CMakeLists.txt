@@ -11,7 +11,7 @@ find_package(OpenGL REQUIRED)
 
 add_subdirectory(third-party/stb)
 
-add_executable(${PROJECT_NAME} main.cc filesystem.cc shader.cc window.cc)
+add_executable(${PROJECT_NAME} main.cc filesystem.cc shader.cc window.cc texture.cc)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw ${OPENGL_gl_LIBRARY} stb)
 if (APPLE)

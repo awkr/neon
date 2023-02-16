@@ -5,4 +5,5 @@
 struct Context {
   struct GLFWwindow *window;
   GLuint program;
+  struct Texture *texture;
 };
