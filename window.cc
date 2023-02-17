@@ -1,4 +1,6 @@
 #include "window.h"
+#include "context.h"
+#include "event.h"
 #include <iostream>
 
 #define GLFW_INCLUDE_GLCOREARB
@@ -8,8 +10,14 @@ static void errorCallback(int error, const char *note) { fprintf(stderr, "error:
 
 static void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-    glfwSetWindowShouldClose(window, GLFW_TRUE);
+    auto context = (Context *)glfwGetWindowUserPointer(window);
+    event_fire(context->eventSystemState, EVENT_CODE_QUIT, context, {});
   }
+}
+
+static void windowShouldClose(GLFWwindow *window) {
+  auto context = (Context *)glfwGetWindowUserPointer(window);
+  event_fire(context->eventSystemState, EVENT_CODE_QUIT, context, {});
 }
 
 static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[]) {
@@ -18,7 +26,7 @@ static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[])
   }
 }
 
-bool window_create(Window **window, u16 width, u16 height) {
+bool window_create(Window **window, u16 width, u16 height, void *pointer) {
   glfwSetErrorCallback(errorCallback);
   if (!glfwInit()) { return false; }
 
@@ -40,7 +48,9 @@ bool window_create(Window **window, u16 width, u16 height) {
   *window = w;
 
   glfwSetKeyCallback(handle, keyCallback);
+  glfwSetWindowCloseCallback(handle, windowShouldClose);
   glfwSetDropCallback(handle, dropCallback);
+  glfwSetWindowUserPointer(handle, pointer);
 
   glfwMakeContextCurrent(handle);
 
@@ -56,7 +66,7 @@ bool window_create(Window **window, u16 width, u16 height) {
 void window_destroy(Window **window) {
   glfwDestroyWindow((*window)->handle);
   glfwTerminate();
-  DELETE(*window);
+  DELETE(*window)
 }
 
 bool window_should_close(Window *window) { return glfwWindowShouldClose(window->handle); }

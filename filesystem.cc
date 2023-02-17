@@ -36,7 +36,7 @@ bool filesystem_open(File **file, const char *path, FileMode mode, bool binary) 
 void filesystem_close(File **file) {
   if (auto f = *file; f->valid) {
     fclose((FILE *)f->handle);
-    DELETE(f);
+    DELETE(f)
   }
 }
 

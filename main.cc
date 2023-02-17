@@ -1,4 +1,5 @@
 #include "context.h"
+#include "event.h"
 #include "shader.h"
 #include "texture.h"
 #include "window.h"
@@ -26,6 +27,8 @@ struct Vertex {
   float position[2];
   float texCoord[2];
 };
+
+bool event_on_quit(EventContext context, void *sender);
 
 void init(Context *context) {
   glGenVertexArrays(VAO_COUNT, vaos);
@@ -77,6 +80,8 @@ void init(Context *context) {
 void shutdown(Context *context) {
   program_destroy(context->program);
   texture_destroy(&context->texture);
+  event_deregister(context->eventSystemState, EVENT_CODE_QUIT, nullptr, event_on_quit);
+  event_system_shutdown(&context->eventSystemState);
   window_destroy(&context->window);
 }
 
@@ -110,17 +115,26 @@ void display(Context *context) {
 int main() {
   Context context{};
 
-  if (!window_create(&context.window, 640, 480)) { return EXIT_FAILURE; }
+  if (!window_create(&context.window, 640, 480, &context)) { return EXIT_FAILURE; }
+
+  event_system_initialize(&context.eventSystemState);
+
+  event_register(context.eventSystemState, EVENT_CODE_QUIT, nullptr, event_on_quit);
 
   init(&context);
 
-  while (!window_should_close(context.window)) {
+  while (!context.quit) {
+    window_poll_events(context.window);
     display(&context);
     window_swap_buffers(context.window);
-    window_poll_events(context.window);
   }
 
   shutdown(&context);
 
   return EXIT_SUCCESS;
+}
+
+bool event_on_quit(EventContext context, void *sender) {
+  ((Context *)sender)->quit = true;
+  return true;
 }

@@ -42,7 +42,7 @@ bool texture_create(Texture **texture, const char *filepath) {
 
 void texture_destroy(Texture **texture) {
   glDeleteTextures(1, &(*texture)->id);
-  DELETE(*texture);
+  DELETE(*texture)
 }
 
 void texture_bind(Texture *texture, u8 slot) {
