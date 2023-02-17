@@ -1,10 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdlib>
 
 #define DELETE(ptr)                                                                                \
   delete ptr;                                                                                      \
   ptr = nullptr;
+
+static const size_t KiB = 1024u;
+static const size_t MiB = 1024u * KiB;
 
 typedef void *any;
 

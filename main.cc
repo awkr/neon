@@ -1,5 +1,6 @@
 #include "context.h"
 #include "event.h"
+#include "renderer.h"
 #include "shader.h"
 #include "texture.h"
 #include "window.h"
@@ -22,11 +23,6 @@ GLuint vaos[VAO_COUNT];
 GLuint buffers[VBO_COUNT];
 GLuint ebos[VBO_COUNT];
 const GLuint kNumVertices = 4;
-
-struct Vertex {
-  float position[2];
-  float texCoord[2];
-};
 
 bool event_on_quit(EventContext context, void *sender);
 bool event_on_resized(EventContext context, void *sender);
@@ -89,6 +85,7 @@ void shutdown(Context *context) {
 
 void display(Context *context) {
   glViewport(0, 0, context->window->width, context->window->height);
+  glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glBindVertexArray(vaos[VAO_TRIANGLE]);
   program_use(context->program);

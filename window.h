@@ -8,7 +8,7 @@ struct Window {
   u16 height;
 };
 
-bool window_create(Window **window, u16 width, u16 height, void *pointer = nullptr);
+bool window_create(Window **ppWindow, u16 width, u16 height, void *pointer = nullptr);
 void window_destroy(Window **window);
 bool window_should_close(Window *window);
 void window_poll_events(Window *window);

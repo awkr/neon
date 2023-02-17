@@ -34,7 +34,7 @@ static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[])
   }
 }
 
-bool window_create(Window **window, u16 width, u16 height, void *pointer) {
+bool window_create(Window **ppWindow, u16 width, u16 height, void *pointer) {
   glfwSetErrorCallback(errorCallback);
   if (!glfwInit()) { return false; }
 
@@ -49,11 +49,15 @@ bool window_create(Window **window, u16 width, u16 height, void *pointer) {
     return false;
   }
 
-  auto w = new Window();
-  w->handle = handle;
-  w->width = width;
-  w->height = height;
-  *window = w;
+  auto pWindow = new Window();
+  pWindow->handle = handle;
+
+  int w, h;
+  glfwGetFramebufferSize(handle, &w, &h);
+  pWindow->width = w;
+  pWindow->height = h;
+
+  *ppWindow = pWindow;
 
   glfwSetKeyCallback(handle, keyCallback);
   glfwSetWindowCloseCallback(handle, windowShouldCloseCallback);
@@ -69,6 +73,7 @@ bool window_create(Window **window, u16 width, u16 height, void *pointer) {
   std::cout << "GLSL Version:" << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
   glfwSwapInterval(1);
+
   return true;
 }
 
