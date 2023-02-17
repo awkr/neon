@@ -5,7 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <iostream>
 
 enum { VAO_TRIANGLE, VAO_COUNT };
 
@@ -43,7 +42,7 @@ void init(Context *context) {
   glBindBuffer(GL_ARRAY_BUFFER, buffers[VBO_TRIANGLE]);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-  uint indices[6] = {
+  u32 indices[6] = {
       0, 1, 2, // Triangle 1
       1, 3, 2, // Triangle 2
   };
@@ -78,7 +77,7 @@ void init(Context *context) {
 void shutdown(Context *context) {
   program_destroy(context->program);
   texture_destroy(&context->texture);
-  window_destroy(context->window);
+  window_destroy(&context->window);
 }
 
 void display(Context *context) {
@@ -88,12 +87,20 @@ void display(Context *context) {
   texture_bind(context->texture, 0);
 
   {
-    glm::mat4 trans(1.0f);
-    // Rotate first then translate
-    trans = glm::translate(trans, glm::vec3(0.0f, 0.5f, 0.0f));
-    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 model(1.0);
+    model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.0, 0.0, 0.0));
 
-    program_set_mat4f(context->program, "transform", glm::value_ptr(trans));
+    glm::mat4 view(1.0);
+    view = glm::translate(view, glm::vec3(0.0, 0.0, -3.0));
+
+    glm::mat4 projection(1.0);
+    projection =
+        glm::perspective(glm::radians(45.0f),
+                         (f32)context->window->width / (f32)context->window->height, 0.1f, 100.0f);
+
+    program_set_mat4f(context->program, "model", glm::value_ptr(model));
+    program_set_mat4f(context->program, "view", glm::value_ptr(view));
+    program_set_mat4f(context->program, "projection", glm::value_ptr(projection));
   }
 
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
@@ -103,7 +110,7 @@ void display(Context *context) {
 int main() {
   Context context{};
 
-  if (!window_create(&context.window)) { return EXIT_FAILURE; }
+  if (!window_create(&context.window, 640, 480)) { return EXIT_FAILURE; }
 
   init(&context);
 

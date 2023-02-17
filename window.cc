@@ -18,7 +18,7 @@ static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[])
   }
 }
 
-bool window_create(GLFWwindow **window) {
+bool window_create(Window **window, u16 width, u16 height) {
   glfwSetErrorCallback(errorCallback);
   if (!glfwInit()) { return false; }
 
@@ -27,12 +27,17 @@ bool window_create(GLFWwindow **window) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 
-  auto handle = glfwCreateWindow(640, 480, "neon", nullptr, nullptr);
+  auto handle = glfwCreateWindow(width, height, "neon", nullptr, nullptr);
   if (!handle) {
     glfwTerminate();
     return false;
   }
-  *window = handle;
+
+  auto w = new Window();
+  w->handle = handle;
+  w->width = width;
+  w->height = height;
+  *window = w;
 
   glfwSetKeyCallback(handle, keyCallback);
   glfwSetDropCallback(handle, dropCallback);
@@ -48,15 +53,16 @@ bool window_create(GLFWwindow **window) {
   return true;
 }
 
-void window_destroy(GLFWwindow *window) {
-  glfwDestroyWindow(window);
+void window_destroy(Window **window) {
+  glfwDestroyWindow((*window)->handle);
   glfwTerminate();
+  DELETE(*window);
 }
 
-bool window_should_close(GLFWwindow *window) { return glfwWindowShouldClose(window); }
+bool window_should_close(Window *window) { return glfwWindowShouldClose(window->handle); }
 
-void window_poll_events(GLFWwindow *window) { glfwPollEvents(); }
+void window_poll_events(Window *window) { glfwPollEvents(); }
 
-void window_swap_buffers(GLFWwindow *window) { glfwSwapBuffers(window); }
+void window_swap_buffers(Window *window) { glfwSwapBuffers(window->handle); }
 
 f64 window_get_time() { return glfwGetTime(); }

@@ -8,10 +8,7 @@ bool filesystem_exists(const char *path) {
   return stat(path, &st) == 0;
 }
 
-bool filesystem_open(const char *path, FileMode mode, bool binary, File *outFile) {
-  outFile->handle = nullptr;
-  outFile->valid = false;
-
+bool filesystem_open(File **file, const char *path, FileMode mode, bool binary) {
   const char *flags;
   if ((mode & FILE_MODE_READ) != 0 && (mode & FILE_MODE_WRITE) != 0) {
     flags = binary ? "w+b" : "w+";
@@ -23,21 +20,23 @@ bool filesystem_open(const char *path, FileMode mode, bool binary, File *outFile
     fprintf(stderr, "invalid mode passed while opening file: '%s'\n", path);
     return false;
   }
-  FILE *file = fopen(path, flags);
-  if (!file) {
+  FILE *handle = fopen(path, flags);
+  if (!handle) {
     fprintf(stderr, "error opening file: '%s'\n", path);
     return false;
   }
-  outFile->handle = file;
-  outFile->valid = true;
+
+  auto f = new File();
+  f->handle = handle;
+  f->valid = true;
+  *file = f;
   return true;
 }
 
-void filesystem_close(File *file) {
-  if (file->valid) {
-    fclose((FILE *)file->handle);
-    file->handle = nullptr;
-    file->valid = false;
+void filesystem_close(File **file) {
+  if (auto f = *file; f->valid) {
+    fclose((FILE *)f->handle);
+    DELETE(f);
   }
 }
 
@@ -64,9 +63,7 @@ bool filesystem_read_line(File *file, u64 maxLength, char **outBuffer, u64 *outL
 bool filesystem_write_line(File *file, const char *buffer) {
   if (file->valid) {
     auto result = fputs(buffer, (FILE *)file->handle);
-    if (result != EOF) {
-      result = fputc('\n', (FILE *)file->handle);
-    }
+    if (result != EOF) { result = fputc('\n', (FILE *)file->handle); }
     fflush((FILE *)file->handle);
     return result != EOF;
   }
@@ -84,9 +81,7 @@ bool filesystem_read(File *file, u64 size, void **outBuffer, u64 *outBytesRead) 
 bool filesystem_read(File *file, void *outBuffer, u64 *outBytesRead) {
   if (file->valid) {
     u64 size;
-    if (!filesystem_size(file, &size)) {
-      return false;
-    }
+    if (!filesystem_size(file, &size)) { return false; }
     *outBytesRead = fread(outBuffer, 1, size, (FILE *)file->handle);
     return *outBytesRead == size;
   }
@@ -96,9 +91,7 @@ bool filesystem_read(File *file, void *outBuffer, u64 *outBytesRead) {
 bool filesystem_write(File *file, u64 size, const void *buffer, u64 *outBytesWritten) {
   if (file->valid) {
     *outBytesWritten = fwrite(buffer, 1, size, (FILE *)file->handle);
-    if (*outBytesWritten != size) {
-      return false;
-    }
+    if (*outBytesWritten != size) { return false; }
     fflush((FILE *)file->handle);
     return true;
   }

@@ -3,7 +3,7 @@
 #include <OpenGL/gl3.h>
 
 struct Context {
-  struct GLFWwindow *window;
+  struct Window *window;
   GLuint program;
   struct Texture *texture;
 };

@@ -13,8 +13,8 @@ enum FileMode {
 };
 
 bool filesystem_exists(const char *path);
-bool filesystem_open(const char *path, FileMode mode, bool binary, File *outFile);
-void filesystem_close(File *file);
+bool filesystem_open(File **file, const char *path, FileMode mode, bool binary);
+void filesystem_close(File **file);
 bool filesystem_size(File *file, u64 *outSize);
 bool filesystem_read_line(File *file, u64 maxLength, char **outBuffer, u64 *outLength);
 /**

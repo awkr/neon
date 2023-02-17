@@ -10,14 +10,15 @@ bool program_create(GLuint *program, const std::vector<GLuint> &shaders);
 
 bool shader_create(GLuint *shader, GLuint type, const char *path) {
   // Read from file
-  File file{};
-  if (!filesystem_open(path, FILE_MODE_READ, false, &file)) { return false; }
+  File *file = nullptr;
+  if (!filesystem_open(&file, path, FILE_MODE_READ, false)) { return false; }
   u64 size = 0;
-  if (!filesystem_size(&file, &size)) { return false; }
+  if (!filesystem_size(file, &size)) { return false; }
   auto buffer = (GLchar *)calloc(size, sizeof(GLchar));
   u64 read = 0;
-  if (!filesystem_read(&file, buffer, &read)) {
+  if (!filesystem_read(file, buffer, &read)) {
     free(buffer);
+    filesystem_close(&file);
     return false;
   }
 
@@ -39,6 +40,7 @@ bool shader_create(GLuint *shader, GLuint type, const char *path) {
   *shader = handle;
 
   free(buffer);
+  filesystem_close(&file);
   return true;
 }
 
