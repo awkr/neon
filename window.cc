@@ -15,9 +15,17 @@ static void keyCallback(GLFWwindow *window, int key, int scancode, int action, i
   }
 }
 
-static void windowShouldClose(GLFWwindow *window) {
+static void windowShouldCloseCallback(GLFWwindow *window) {
   auto context = (Context *)glfwGetWindowUserPointer(window);
   event_fire(context->eventSystemState, EVENT_CODE_QUIT, context, {});
+}
+
+static void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
+  auto context = (Context *)glfwGetWindowUserPointer(window);
+  EventContext eventContext{};
+  eventContext.u32[0] = width;
+  eventContext.u32[1] = height;
+  event_fire(context->eventSystemState, EVENT_CODE_RESIZED, context, eventContext);
 }
 
 static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[]) {
@@ -48,7 +56,8 @@ bool window_create(Window **window, u16 width, u16 height, void *pointer) {
   *window = w;
 
   glfwSetKeyCallback(handle, keyCallback);
-  glfwSetWindowCloseCallback(handle, windowShouldClose);
+  glfwSetWindowCloseCallback(handle, windowShouldCloseCallback);
+  glfwSetFramebufferSizeCallback(handle, framebufferSizeCallback);
   glfwSetDropCallback(handle, dropCallback);
   glfwSetWindowUserPointer(handle, pointer);
 

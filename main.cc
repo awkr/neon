@@ -29,6 +29,7 @@ struct Vertex {
 };
 
 bool event_on_quit(EventContext context, void *sender);
+bool event_on_resized(EventContext context, void *sender);
 
 void init(Context *context) {
   glGenVertexArrays(VAO_COUNT, vaos);
@@ -80,12 +81,14 @@ void init(Context *context) {
 void shutdown(Context *context) {
   program_destroy(context->program);
   texture_destroy(&context->texture);
+  event_deregister(context->eventSystemState, EVENT_CODE_RESIZED, nullptr, event_on_resized);
   event_deregister(context->eventSystemState, EVENT_CODE_QUIT, nullptr, event_on_quit);
   event_system_shutdown(&context->eventSystemState);
   window_destroy(&context->window);
 }
 
 void display(Context *context) {
+  glViewport(0, 0, context->window->width, context->window->height);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glBindVertexArray(vaos[VAO_TRIANGLE]);
   program_use(context->program);
@@ -110,6 +113,8 @@ void display(Context *context) {
 
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
   glFlush();
+
+  window_swap_buffers(context->window);
 }
 
 int main() {
@@ -120,13 +125,13 @@ int main() {
   event_system_initialize(&context.eventSystemState);
 
   event_register(context.eventSystemState, EVENT_CODE_QUIT, nullptr, event_on_quit);
+  event_register(context.eventSystemState, EVENT_CODE_RESIZED, nullptr, event_on_resized);
 
   init(&context);
 
   while (!context.quit) {
     window_poll_events(context.window);
     display(&context);
-    window_swap_buffers(context.window);
   }
 
   shutdown(&context);
@@ -136,5 +141,14 @@ int main() {
 
 bool event_on_quit(EventContext context, void *sender) {
   ((Context *)sender)->quit = true;
+  return true;
+}
+
+bool event_on_resized(EventContext context, void *sender) {
+  ((Context *)sender)->window->width = context.u32[0];
+  ((Context *)sender)->window->height = context.u32[1];
+
+  display((Context *)sender);
+
   return true;
 }
