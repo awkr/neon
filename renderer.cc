@@ -1,7 +1,7 @@
 #include "renderer.h"
 #include "context.h"
 #include "defines.h"
-#include "shader.h"
+#include "program.h"
 #include "texture.h"
 #include "window.h"
 #include <cstdio>

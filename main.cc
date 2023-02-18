@@ -49,52 +49,148 @@
 //   return true;
 // }
 
-#include <OpenGL/gl3.h>
+#include "program.h"
+#include "texture.h"
 #include <SDL.h>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-// #include <tinycthread.h>
+#include <cassert>
+#include <chrono>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <pthread.h>
 
-// typedef struct {
-//   GLFWwindow *window;
-//   const char *title;
-//   float r, g, b;
-//   thrd_t id;
-// } Thread;
-//
-// static volatile int running = GLFW_TRUE;
-//
-// static void error_callback(int error, const char *description) {
-//   fprintf(stderr, "Error: %s\n", description);
-// }
-//
-// static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-//   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) glfwSetWindowShouldClose(window,
-//   GLFW_TRUE);
-// }
-//
-// static int thread_main(void *data) {
-//   const Thread *thread = (Thread *)data;
-//
-//   glfwMakeContextCurrent(thread->window);
-//   glfwSwapInterval(1);
-//
-//   while (running) {
-//     // const float v = (float)fabs(sin(glfwGetTime() * 2.f));
-//     float v = 1;
-//     glClearColor(thread->r * v, thread->g * v, thread->b * v, 0.f);
-//
-//     glClear(GL_COLOR_BUFFER_BIT);
-//     glfwSwapBuffers(thread->window);
-//   }
-//
-//   glfwMakeContextCurrent(NULL);
-//   return 0;
-// }
+using Clock = std::chrono::steady_clock;
+
+struct Context {
+  bool quit;
+  SDL_Window *window;
+};
+
+enum { VAO_TRIANGLE, VAO_COUNT };
+
+enum { VBO_TRIANGLE, VBO_COUNT };
+
+enum { EBO_TRIANGLE, EBO_COUNT };
+
+enum {
+  vPosition = 0,
+  vTexCoord = 1,
+};
+
+GLuint VAOs[VAO_COUNT];
+GLuint VBOs[VBO_COUNT];
+GLuint EBOs[VBO_COUNT];
+const GLuint kNumVertices = 4;
+GLuint program;
+Texture *texture;
+
+struct Vertex {
+  f32 position[2];
+  f32 texCoord[2];
+};
+
+void init() {
+  glGenVertexArrays(VAO_COUNT, VAOs);
+  glBindVertexArray(VAOs[VAO_TRIANGLE]);
+
+  Vertex vertices[kNumVertices] = {
+      {{-0.5f, -0.5f}, {0.0, 0.0}}, // Left bottom
+      {{0.5f, -0.5f}, {1.0, 0.0}},  // Right bottom
+      {{-0.5f, 0.5f}, {0.0, 1.0}},  // Left top
+      {{0.5f, 0.5f}, {1.0, 1.0}},   // Right top
+  };
+
+  glGenBuffers(VBO_COUNT, VBOs);
+  glBindBuffer(GL_ARRAY_BUFFER, VBOs[VBO_TRIANGLE]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  u32 indices[6] = {
+      0, 1, 2, // Triangle 1
+      1, 3, 2, // Triangle 2
+  };
+
+  glGenBuffers(EBO_COUNT, EBOs);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[EBO_TRIANGLE]);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+  auto ok = texture_create(&texture, "container.jpg");
+  assert(ok);
+
+  ok = program_create(&program,
+                      {{GL_VERTEX_SHADER, "shader.vert"}, {GL_FRAGMENT_SHADER, "shader.frag"}});
+  assert(ok);
+
+  program_use(program);
+
+  glVertexAttribPointer(vPosition, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        (any)offsetof(Vertex, position));
+  glEnableVertexAttribArray(vPosition);
+
+  glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        (any)offsetof(Vertex, texCoord));
+  glEnableVertexAttribArray(vTexCoord);
+
+  // The call to glVertexAttribPointer already registered `VBO_TRIANGLE` as the vertex attribute's
+  // bound vertex buffer object
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
+}
+
+void render(u32 width, u32 height) {
+  glViewport(0, 0, width, height);
+  // glEnable(GL_CULL_FACE);
+  // glFrontFace(GL_CCW);
+  // glCullFace(GL_BACK);
+  glEnable(GL_DEPTH_TEST);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glBindVertexArray(VAOs[VAO_TRIANGLE]);
+  program_use(program);
+  texture_bind(texture);
+
+  {
+    glm::mat4 model(1.0);
+    model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.0, 0.0, 0.0));
+
+    glm::mat4 view(1.0);
+    // view = glm::translate(view, glm::vec3(0.0, 0.0, -3.0));
+    f32 radius = 5.0f;
+    auto seconds = (f32)SDL_GetTicks64() / 1000.0f;
+    f32 cameraX = sin(seconds) * radius;
+    f32 cameraZ = cos(seconds) * radius;
+    view = glm::lookAt(glm::vec3(cameraX, 0.0f, cameraZ), glm::vec3(0.0f, 0.0f, 0.0),
+                       glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glm::mat4 projection(1.0);
+    projection = glm::perspective(glm::radians(45.0f), (f32)width / (f32)height, 0.1f, 100.0f);
+
+    program_set_mat4f(program, "model", glm::value_ptr(model));
+    program_set_mat4f(program, "view", glm::value_ptr(view));
+    program_set_mat4f(program, "projection", glm::value_ptr(projection));
+  }
+
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+  glFlush();
+}
+
+void *render_thread_main(void *args) {
+  auto context = (Context *)args;
+  auto glContext = SDL_GL_CreateContext(context->window);
+  SDL_GL_MakeCurrent(context->window, glContext);
+  init();
+  auto start = Clock::now();
+  while (!context->quit) {
+    auto now = Clock::now();
+    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+    int w, h;
+    SDL_GL_GetDrawableSize(context->window, &w, &h);
+    render(w, h);
+    SDL_GL_SwapWindow(context->window);
+  }
+  pthread_exit(nullptr);
+}
 
 int main(int argc, char **argv) {
-  bool quit = false;
+  Context context{};
   if (SDL_Init(SDL_INIT_EVERYTHING)) {
     fprintf(stderr, "error initializing SDL: %s\n", SDL_GetError());
     return EXIT_FAILURE;
@@ -103,80 +199,41 @@ int main(int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-  SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
-  auto window = SDL_CreateWindow(
-      "neon", 0, 0, 640, 480, SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
-  auto glContext = SDL_GL_CreateContext(window);
-  SDL_GL_MakeCurrent(window, glContext);
+  auto window = SDL_CreateWindow("neon", 0, 0, 640, 480,
+                                 SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE |
+                                     SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+  if (!window) {
+    fprintf(stderr, "error creating window: %s\n", SDL_GetError());
+    SDL_Quit();
+    return EXIT_FAILURE;
+  }
+  context.window = window;
+  pthread_t renderThread;
+  pthread_create(&renderThread, nullptr, render_thread_main, &context);
   SDL_Event event;
-  while (!quit) {
+  while (!context.quit) {
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
-      case SDL_QUIT: quit = true; break;
+      case SDL_QUIT: {
+        context.quit = true;
+        break;
+      }
       case SDL_KEYUP:
         switch (event.key.keysym.scancode) {
-        case SDL_SCANCODE_ESCAPE: quit = true; break;
+        case SDL_SCANCODE_ESCAPE: {
+          context.quit = true;
+          break;
+        }
         default: break;
         }
         break;
       default: break;
       }
     }
-    if (quit) { break; }
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(1.0, 0.0, 0.0, 1.0);
-    SDL_GL_SwapWindow(window);
+    if (context.quit) { break; }
   }
+  pthread_join(renderThread, nullptr);
   SDL_DestroyWindow(window);
   SDL_Quit();
   return EXIT_SUCCESS;
-
-  // int i, result;
-  // Thread threads[] = {{NULL, "Red", 1.f, 0.f, 0.f, 0}};
-  // const int count = sizeof(threads) / sizeof(Thread);
-  //
-  // glfwSetErrorCallback(error_callback);
-  //
-  // if (!glfwInit()) exit(EXIT_FAILURE);
-  //
-  // for (i = 0; i < count; i++) {
-  //   glfwWindowHint(GLFW_POSITION_X, 200 + 250 * i);
-  //   glfwWindowHint(GLFW_POSITION_Y, 200);
-  //
-  //   threads[i].window = glfwCreateWindow(200, 200, threads[i].title, NULL, NULL);
-  //   if (!threads[i].window) {
-  //     glfwTerminate();
-  //     exit(EXIT_FAILURE);
-  //   }
-  //
-  //   glfwSetKeyCallback(threads[i].window, key_callback);
-  // }
-  //
-  // // glfwMakeContextCurrent(threads[0].window);
-  // // glfwMakeContextCurrent(NULL);
-  //
-  // for (i = 0; i < count; i++) {
-  //   if (thrd_create(&threads[i].id, thread_main, threads + i) != thrd_success) {
-  //     fprintf(stderr, "Failed to create secondary thread\n");
-  //
-  //     glfwTerminate();
-  //     exit(EXIT_FAILURE);
-  //   }
-  // }
-  //
-  // while (running) {
-  //   glfwWaitEvents();
-  //
-  //   for (i = 0; i < count; i++) {
-  //     if (glfwWindowShouldClose(threads[i].window)) running = GLFW_FALSE;
-  //   }
-  // }
-  //
-  // for (i = 0; i < count; i++)
-  //   glfwHideWindow(threads[i].window);
-  //
-  // for (i = 0; i < count; i++)
-  //   thrd_join(threads[i].id, &result);
-  //
-  // exit(EXIT_SUCCESS);
 }
