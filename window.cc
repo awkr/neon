@@ -34,7 +34,7 @@ static void dropCallback(GLFWwindow *window, int pathCount, const char *paths[])
   }
 }
 
-bool window_create(Window **ppWindow, u16 width, u16 height, void *pointer) {
+bool window_create(Window **ppWindow, u16 width, u16 height, void *userPtr) {
   glfwSetErrorCallback(errorCallback);
   if (!glfwInit()) { return false; }
 
@@ -63,16 +63,16 @@ bool window_create(Window **ppWindow, u16 width, u16 height, void *pointer) {
   glfwSetWindowCloseCallback(handle, windowShouldCloseCallback);
   glfwSetFramebufferSizeCallback(handle, framebufferSizeCallback);
   glfwSetDropCallback(handle, dropCallback);
-  glfwSetWindowUserPointer(handle, pointer);
+  glfwSetWindowUserPointer(handle, userPtr);
 
-  glfwMakeContextCurrent(handle);
-
-  std::cout << "OpenGL Vendor:" << glGetString(GL_VENDOR) << std::endl;
-  std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
-  std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-  std::cout << "GLSL Version:" << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-
-  glfwSwapInterval(1);
+  // glfwMakeContextCurrent(handle);
+  //
+  // std::cout << "OpenGL Vendor:" << glGetString(GL_VENDOR) << std::endl;
+  // std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
+  // std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+  // std::cout << "GLSL Version:" << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+  //
+  // glfwSwapInterval(1);
 
   return true;
 }
@@ -89,4 +89,8 @@ void window_poll_events(Window *window) { glfwPollEvents(); }
 
 void window_swap_buffers(Window *window) { glfwSwapBuffers(window->handle); }
 
-f64 window_get_time() { return glfwGetTime(); }
+void window_make_context_current(Window *window) { glfwMakeContextCurrent(window->handle); }
+
+void window_set_swap_interval(Window *window, u8 interval) { glfwSwapInterval(interval); }
+
+f32 window_get_time() { return (f32)glfwGetTime(); }
