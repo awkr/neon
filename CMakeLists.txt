@@ -40,7 +40,7 @@ find_package(OpenGL REQUIRED)
 add_subdirectory(third-party/stb)
 add_subdirectory(third-party/glm)
 
-add_executable(${PROJECT_NAME} main.cc filesystem.cc program.cc texture.cc)
+add_executable(${PROJECT_NAME} main.cc filesystem.cc program.cc texture.cc message_queue.h)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC SDL2-static ${OPENGL_gl_LIBRARY} stb glm)
 
