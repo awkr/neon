@@ -1,54 +1,3 @@
-// #include "context.h"
-// #include "event.h"
-// #include "renderer.h"
-// #include "window.h"
-//
-// bool event_on_quit(EventContext context, void *sender);
-// bool event_on_resized(EventContext context, void *sender);
-//
-// void shutdown(Context *context) {
-//   renderer_system_shutdown(&context->renderSystemState);
-//   event_deregister(context->eventSystemState, EVENT_CODE_RESIZED, nullptr, event_on_resized);
-//   event_deregister(context->eventSystemState, EVENT_CODE_QUIT, nullptr, event_on_quit);
-//   event_system_shutdown(&context->eventSystemState);
-//   window_destroy(&context->window);
-// }
-//
-// int main() {
-//   Context context{};
-//
-//   if (!window_create(&context.window, 640, 480, &context)) { return EXIT_FAILURE; }
-//
-//   event_system_initialize(&context.eventSystemState);
-//
-//   event_register(context.eventSystemState, EVENT_CODE_QUIT, nullptr, event_on_quit);
-//   event_register(context.eventSystemState, EVENT_CODE_RESIZED, nullptr, event_on_resized);
-//
-//   renderer_system_startup(&context.renderSystemState, &context);
-//
-//   while (!context.quit) {
-//     window_poll_events(context.window);
-//   }
-//
-//   shutdown(&context);
-//
-//   return EXIT_SUCCESS;
-// }
-//
-// bool event_on_quit(EventContext context, void *sender) {
-//   ((Context *)sender)->quit = true;
-//   return true;
-// }
-//
-// bool event_on_resized(EventContext context, void *sender) {
-//   // ((Context *)sender)->window->width = context.u32[0];
-//   // ((Context *)sender)->window->height = context.u32[1];
-//
-//   // display((Context *)sender);
-//
-//   return true;
-// }
-
 #include "message_queue.h"
 #include "program.h"
 #include "texture.h"
@@ -95,6 +44,26 @@ GLuint EBOs[VBO_COUNT];
 const GLuint kNumVertices = 4;
 GLuint program;
 Texture *texture;
+
+enum FrameState {
+  FRAME_STATE_EMPTY = 0x0,
+  FRAME_STATE_PROCESSING,
+  FRAME_STATE_PROCESSED,
+  FRAME_STATE_UPDATING,
+  FRAME_STATE_UPDATED,
+  FRAME_STATE_RENDERING,
+  FRAME_STATE_RENDERED,
+  FRAME_STATE_PRESENTING,
+  FRAME_STATE_PRESENTED,
+};
+
+struct Frame {
+  FrameState state;
+  std::mutex mutex;
+  std::condition_variable condition;
+};
+
+Frame frames[3] = {};
 
 struct Vertex {
   f32 position[2];
@@ -185,6 +154,7 @@ void render(u32 width, u32 height) {
 
 void *update_thread_main(void *args) {
   auto context = (Context *)args;
+  auto time = Clock::now();
   bool quit = false;
   while (!quit) {
     Message message;
@@ -194,15 +164,41 @@ void *update_thread_main(void *args) {
     }
     switch (message.type) {
     case MESSAGE_TYPE_QUIT: quit = true; break;
-    case MESSAGE_TYPE_UPDATE:
+    case MESSAGE_TYPE_UPDATE: {
+      auto startTime = Clock::now();
+      auto deltaTime =
+          std::chrono::duration_cast<std::chrono::microseconds>(startTime - time).count();
+      time = startTime;
+
+      auto frameIndex = message.u32[0];
+      printf("[UpdateThread] update frame #%d, delta time %lld microseconds\n", frameIndex,
+             deltaTime);
+
+      // Do some updates
+
       context->renderThreadMessageQueue->push({
           .type = MESSAGE_TYPE_RENDER,
-      });
-      sleep_for(1 / 60.0);
+          .u32[0] = frameIndex,
+      }); // Issue render commands
+
+      if (frameIndex > 0) { // Wait for previous frame to be presented
+        printf("[UpdateThread] frame #%d is waiting for frame #%d to be presented\n", frameIndex,
+               frameIndex - 1);
+        auto &frame = frames[frameIndex - 1];
+        std::unique_lock<std::mutex> lock(frame.mutex);
+        frame.condition.wait(lock, [&]() { return frame.state == FRAME_STATE_PRESENTED; });
+      }
+
+      auto duration =
+          std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - startTime).count();
+      auto lifespan = (u64)(1 / 60.0f * 1e9); // Nanoseconds
+      if (duration < lifespan) { sleep_for((double)(lifespan - duration) / 1e9); }
+
       context->updateThreadMessageQueue->push({
           .type = MESSAGE_TYPE_UPDATE,
-      });
-      break;
+          .u32[0] = (frameIndex + 1) % 3,
+      }); // Start to update next frame
+    } break;
     default: break;
     }
   }
@@ -215,7 +211,6 @@ void *render_thread_main(void *args) {
   SDL_GL_MakeCurrent(context->window, glContext);
   init();
   bool quit = false;
-  auto start = Clock::now();
   while (!quit) {
     Message message;
     if (auto ok = context->renderThreadMessageQueue->pop(&message); !ok) {
@@ -225,13 +220,20 @@ void *render_thread_main(void *args) {
     switch (message.type) {
     case MESSAGE_TYPE_QUIT: quit = true; break;
     case MESSAGE_TYPE_RENDER: {
-      auto now = Clock::now();
-      auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+      printf("[RenderThread] render frame #%d\n", message.u32[0]);
       int w, h;
       SDL_GL_GetDrawableSize(context->window, &w, &h);
       render(w, h);
       glFinish();
+      printf("[RenderThread] about to present frame #%d\n", message.u32[0]);
       SDL_GL_SwapWindow(context->window);
+      printf("[RenderThread] frame #%d presented\n", message.u32[0]);
+      {
+        auto &frame = frames[message.u32[0]];
+        std::lock_guard<std::mutex> lock(frame.mutex);
+        frame.state = FRAME_STATE_PRESENTED;
+        frame.condition.notify_one();
+      }
     } break;
     default: break;
     }
@@ -279,6 +281,7 @@ int main(int argc, char **argv) {
   context.updateThreadMessageQueue = std::make_unique<MessageQueue>();
   context.updateThreadMessageQueue->push({
       .type = MESSAGE_TYPE_UPDATE,
+      .u32[0] = 0, // Starts from frame #0
   });
   SDL_Event event;
   while (!context.quit) {
@@ -304,8 +307,12 @@ int main(int argc, char **argv) {
   }
   context.renderThreadMessageQueue->push({
       .type = MESSAGE_TYPE_QUIT,
-  });
+  }); // Quit render thread
   pthread_join(renderThread, nullptr);
+  context.updateThreadMessageQueue->push({
+      .type = MESSAGE_TYPE_QUIT,
+  }); // Quit update thread
+  pthread_join(updateThread, nullptr);
   SDL_DestroyWindow(window);
   SDL_Quit();
   return EXIT_SUCCESS;
