@@ -49,6 +49,7 @@
 //   return true;
 // }
 
+#include "message_queue.h"
 #include "program.h"
 #include "texture.h"
 #include <SDL.h>
@@ -58,12 +59,23 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <pthread.h>
+#include <thread>
 
 using Clock = std::chrono::steady_clock;
+
+static void sleep_for(double d) {
+  static constexpr std::chrono::duration<double> minSleepDuration(0);
+  Clock::time_point start = Clock::now();
+  while (std::chrono::duration<double>(Clock::now() - start).count() < d) {
+    std::this_thread::sleep_for(minSleepDuration);
+  }
+}
 
 struct Context {
   bool quit;
   SDL_Window *window;
+  std::unique_ptr<MessageQueue> updateThreadMessageQueue;
+  std::unique_ptr<MessageQueue> renderThreadMessageQueue;
 };
 
 enum { VAO_TRIANGLE, VAO_COUNT };
@@ -171,20 +183,58 @@ void render(u32 width, u32 height) {
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 }
 
+void *update_thread_main(void *args) {
+  auto context = (Context *)args;
+  bool quit = false;
+  while (!quit) {
+    Message message;
+    if (auto ok = context->updateThreadMessageQueue->pop(&message); !ok) {
+      quit = true;
+      break;
+    }
+    switch (message.type) {
+    case MESSAGE_TYPE_QUIT: quit = true; break;
+    case MESSAGE_TYPE_UPDATE:
+      context->renderThreadMessageQueue->push({
+          .type = MESSAGE_TYPE_RENDER,
+      });
+      sleep_for(1 / 60.0);
+      context->updateThreadMessageQueue->push({
+          .type = MESSAGE_TYPE_UPDATE,
+      });
+      break;
+    default: break;
+    }
+  }
+  pthread_exit(nullptr);
+}
+
 void *render_thread_main(void *args) {
   auto context = (Context *)args;
   auto glContext = SDL_GL_CreateContext(context->window);
   SDL_GL_MakeCurrent(context->window, glContext);
   init();
+  bool quit = false;
   auto start = Clock::now();
-  while (!context->quit) {
-    auto now = Clock::now();
-    auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-    int w, h;
-    SDL_GL_GetDrawableSize(context->window, &w, &h);
-    render(w, h);
-    glFinish();
-    SDL_GL_SwapWindow(context->window);
+  while (!quit) {
+    Message message;
+    if (auto ok = context->renderThreadMessageQueue->pop(&message); !ok) {
+      quit = true;
+      break;
+    }
+    switch (message.type) {
+    case MESSAGE_TYPE_QUIT: quit = true; break;
+    case MESSAGE_TYPE_RENDER: {
+      auto now = Clock::now();
+      auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+      int w, h;
+      SDL_GL_GetDrawableSize(context->window, &w, &h);
+      render(w, h);
+      glFinish();
+      SDL_GL_SwapWindow(context->window);
+    } break;
+    default: break;
+    }
   }
   pthread_exit(nullptr);
 }
@@ -207,9 +257,29 @@ int main(int argc, char **argv) {
     SDL_Quit();
     return EXIT_FAILURE;
   }
+  SDL_SetWindowData(window, "EngineContext", &context);
+  SDL_AddEventWatch(
+      [](void *userdata, SDL_Event *event) -> int {
+        if (event->type == SDL_WINDOWEVENT && event->window.event == SDL_WINDOWEVENT_RESIZED) {
+          auto window = SDL_GetWindowFromID(event->window.windowID);
+          auto context = (Context *)SDL_GetWindowData(window, "EngineContext");
+          // context->renderThreadMessageQueue->push({
+          //     .type = MESSAGE_TYPE_RENDER,
+          // });
+        }
+        return 0;
+      },
+      window);
   context.window = window;
   pthread_t renderThread;
   pthread_create(&renderThread, nullptr, render_thread_main, &context);
+  context.renderThreadMessageQueue = std::make_unique<MessageQueue>();
+  pthread_t updateThread;
+  pthread_create(&updateThread, nullptr, update_thread_main, &context);
+  context.updateThreadMessageQueue = std::make_unique<MessageQueue>();
+  context.updateThreadMessageQueue->push({
+      .type = MESSAGE_TYPE_UPDATE,
+  });
   SDL_Event event;
   while (!context.quit) {
     while (SDL_PollEvent(&event)) {
@@ -232,6 +302,9 @@ int main(int argc, char **argv) {
     }
     if (context.quit) { break; }
   }
+  context.renderThreadMessageQueue->push({
+      .type = MESSAGE_TYPE_QUIT,
+  });
   pthread_join(renderThread, nullptr);
   SDL_DestroyWindow(window);
   SDL_Quit();
