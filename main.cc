@@ -169,7 +169,6 @@ void render(u32 width, u32 height) {
   }
 
   glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-  glFlush();
 }
 
 void *render_thread_main(void *args) {
@@ -184,6 +183,7 @@ void *render_thread_main(void *args) {
     int w, h;
     SDL_GL_GetDrawableSize(context->window, &w, &h);
     render(w, h);
+    glFinish();
     SDL_GL_SwapWindow(context->window);
   }
   pthread_exit(nullptr);
