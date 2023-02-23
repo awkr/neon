@@ -1,3 +1,5 @@
+#include "event.h"
+#include "input.h"
 #include "message_queue.h"
 #include "program.h"
 #include "texture.h"
@@ -25,6 +27,8 @@ struct Context {
   SDL_Window *window;
   std::unique_ptr<MessageQueue> updateThreadMessageQueue;
   std::unique_ptr<MessageQueue> renderThreadMessageQueue;
+  void *eventSystemState;
+  void *inputSystemState;
 };
 
 enum { VAO_TRIANGLE, VAO_COUNT };
@@ -69,6 +73,9 @@ struct Vertex {
   f32 position[2];
   f32 texCoord[2];
 };
+
+bool event_on_quit(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
+bool event_on_key(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
 
 void init() {
   glGenVertexArrays(VAO_COUNT, VAOs);
@@ -117,6 +124,10 @@ void init() {
   glBindVertexArray(0);
 }
 
+auto cameraPos = glm::vec3(0.0, 0.0, 3.0);
+auto cameraFront = glm::vec3(0.0, 0.0, -1.0);
+auto cameraUp = glm::vec3(0.0, 1.0, 0.0);
+
 void render(u32 width, u32 height) {
   glViewport(0, 0, width, height);
   // glEnable(GL_CULL_FACE);
@@ -133,13 +144,17 @@ void render(u32 width, u32 height) {
     model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.0, 0.0, 0.0));
 
     glm::mat4 view(1.0);
+
     // view = glm::translate(view, glm::vec3(0.0, 0.0, -3.0));
-    f32 radius = 5.0f;
-    auto seconds = (f32)SDL_GetTicks64() / 1000.0f;
-    f32 cameraX = sin(seconds) * radius;
-    f32 cameraZ = cos(seconds) * radius;
-    view = glm::lookAt(glm::vec3(cameraX, 0.0f, cameraZ), glm::vec3(0.0f, 0.0f, 0.0),
-                       glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // f32 radius = 5.0f;
+    // auto seconds = (f32)SDL_GetTicks64() / 1000.0f;
+    // f32 cameraX = sin(seconds) * radius;
+    // f32 cameraZ = cos(seconds) * radius;
+    // view = glm::lookAt(glm::vec3(cameraX, 0.0f, cameraZ), glm::vec3(0.0f, 0.0f, 0.0),
+    //                    glm::vec3(0.0f, 1.0f, 0.0f));
+
+    view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
     glm::mat4 projection(1.0);
     projection = glm::perspective(glm::radians(45.0f), (f32)width / (f32)height, 0.1f, 100.0f);
@@ -175,6 +190,26 @@ void *update_thread_main(void *args) {
              deltaTime);
 
       // Do some updates
+
+      auto speed = 0.00125f * deltaTime / 1000.0f;
+      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_W)) {
+        cameraPos += speed * cameraFront;
+      }
+      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_S)) {
+        cameraPos -= speed * cameraFront;
+      }
+      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_A)) {
+        cameraPos -= speed * glm::normalize(glm::cross(cameraFront, cameraUp));
+      }
+      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_D)) {
+        cameraPos += speed * glm::normalize(glm::cross(cameraFront, cameraUp));
+      }
+      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_Q)) {
+        cameraPos += speed * cameraUp;
+      }
+      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_E)) {
+        cameraPos -= speed * cameraUp;
+      }
 
       context->renderThreadMessageQueue->push({
           .type = MESSAGE_TYPE_RENDER,
@@ -243,6 +278,10 @@ void *render_thread_main(void *args) {
 
 int main(int argc, char **argv) {
   Context context{};
+  event_system_initialize(&context.eventSystemState);
+  event_register(context.eventSystemState, EVENT_CODE_KEYBOARD_PRESSED, &context, event_on_key);
+  event_register(context.eventSystemState, EVENT_CODE_KEYBOARD_RELEASED, &context, event_on_key);
+  event_register(context.eventSystemState, EVENT_CODE_QUIT, &context, event_on_quit);
   if (SDL_Init(SDL_INIT_EVERYTHING)) {
     fprintf(stderr, "error initializing SDL: %s\n", SDL_GetError());
     return EXIT_FAILURE;
@@ -283,28 +322,27 @@ int main(int argc, char **argv) {
       .type = MESSAGE_TYPE_UPDATE,
       .u32[0] = 0, // Starts from frame #0
   });
+  input_system_initialize(&context.inputSystemState, context.eventSystemState);
   SDL_Event event;
   while (!context.quit) {
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
       case SDL_QUIT: {
-        context.quit = true;
+        event_fire(context.eventSystemState, EVENT_CODE_QUIT, nullptr, {});
         break;
       }
-      case SDL_KEYUP:
-        switch (event.key.keysym.scancode) {
-        case SDL_SCANCODE_ESCAPE: {
-          context.quit = true;
-          break;
-        }
-        default: break;
-        }
-        break;
+      case SDL_KEYDOWN:
+      case SDL_KEYUP: {
+        input_system_process_key(context.inputSystemState, event.key.keysym.scancode,
+                                 event.type == SDL_KEYDOWN);
+      } break;
       default: break;
       }
     }
     if (context.quit) { break; }
+    input_system_update(context.inputSystemState);
   }
+  input_system_shutdown(&context.inputSystemState);
   context.renderThreadMessageQueue->push({
       .type = MESSAGE_TYPE_QUIT,
   }); // Quit render thread
@@ -315,5 +353,25 @@ int main(int argc, char **argv) {
   pthread_join(updateThread, nullptr);
   SDL_DestroyWindow(window);
   SDL_Quit();
+  event_deregister(context.eventSystemState, EVENT_CODE_QUIT, &context, event_on_quit);
+  event_deregister(context.eventSystemState, EVENT_CODE_KEYBOARD_RELEASED, &context, event_on_key);
+  event_deregister(context.eventSystemState, EVENT_CODE_KEYBOARD_PRESSED, &context, event_on_key);
+  event_system_shutdown(&context.eventSystemState);
   return EXIT_SUCCESS;
+}
+
+bool event_on_quit(EventCode eventCode, EventContext eventContext, void *sender, void *listener) {
+  auto context = (Context *)listener;
+  context->quit = true;
+  return true;
+}
+
+bool event_on_key(EventCode eventCode, EventContext eventContext, void *sender, void *listener) {
+  if (eventCode == EVENT_CODE_KEYBOARD_RELEASED) {
+    if (eventContext.u16[0] == SDL_SCANCODE_ESCAPE) {
+      auto context = (Context *)listener;
+      event_fire(context->eventSystemState, EVENT_CODE_QUIT, nullptr, {});
+    }
+  }
+  return true;
 }

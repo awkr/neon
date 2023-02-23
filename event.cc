@@ -29,7 +29,8 @@ bool event_register(void *state, EventCode code, void *listener, PFN_on_event fn
   auto &entry = s->entries[code];
   for (const auto &event : entry.events) {
     if (event.listener == listener && event.fn == fn) {
-      fprintf(stderr, "event has already been registered with the code %u and the callback %p\n",
+      fprintf(stderr,
+              "[error] event has already been registered with the code %u and the callback %p\n",
               code, fn);
       return false;
     }
@@ -57,7 +58,7 @@ bool event_fire(void *state, EventCode code, void *sender, EventContext context)
   auto s = (EventSystemState *)state;
   auto &entry = s->entries[code];
   for (const auto &event : entry.events) {
-    if (event.fn(context, sender)) {
+    if (event.fn(code, context, sender, event.listener)) {
       return true; // Event has been handled, do not send to other listeners
     }
   }

@@ -43,7 +43,8 @@ struct EventContext {
   };
 };
 
-typedef bool (*PFN_on_event)(EventContext context, void *sender);
+typedef bool (*PFN_on_event)(EventCode eventCode, EventContext context, void *sender,
+                             void *listener);
 
 void event_system_initialize(void **state);
 void event_system_shutdown(void **state);
