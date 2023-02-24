@@ -191,24 +191,38 @@ void *update_thread_main(void *args) {
 
       // Do some updates
 
-      auto speed = 0.00125f * deltaTime / 1000.0f;
-      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_W)) {
-        cameraPos += speed * cameraFront;
-      }
-      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_S)) {
-        cameraPos -= speed * cameraFront;
-      }
-      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_A)) {
-        cameraPos -= speed * glm::normalize(glm::cross(cameraFront, cameraUp));
-      }
-      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_D)) {
-        cameraPos += speed * glm::normalize(glm::cross(cameraFront, cameraUp));
-      }
-      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_Q)) {
-        cameraPos += speed * cameraUp;
-      }
-      if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_E)) {
-        cameraPos -= speed * cameraUp;
+      {
+        // Reset camera's transform
+        if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_SPACE)) {
+          // TODO
+        } else {
+          // Camera rotation
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_UP)) {}
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_DOWN)) {}
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_LEFT)) {}
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_RIGHT)) {}
+
+          // Camera movement
+          auto moveSpeed = 0.001f * deltaTime / 1000.0f;
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_W)) {
+            cameraPos += moveSpeed * cameraFront;
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_S)) {
+            cameraPos -= moveSpeed * cameraFront;
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_A)) {
+            cameraPos -= moveSpeed * glm::normalize(glm::cross(cameraFront, cameraUp));
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_D)) {
+            cameraPos += moveSpeed * glm::normalize(glm::cross(cameraFront, cameraUp));
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_Q)) {
+            cameraPos += moveSpeed * cameraUp;
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_E)) {
+            cameraPos -= moveSpeed * cameraUp;
+          }
+        }
       }
 
       context->renderThreadMessageQueue->push({
