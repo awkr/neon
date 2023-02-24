@@ -1,3 +1,4 @@
+#include "camera.h"
 #include "event.h"
 #include "input.h"
 #include "message_queue.h"
@@ -6,9 +7,6 @@
 #include <SDL.h>
 #include <cassert>
 #include <chrono>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <pthread.h>
 #include <thread>
 
@@ -124,9 +122,7 @@ void init() {
   glBindVertexArray(0);
 }
 
-auto cameraPos = glm::vec3(0.0, 0.0, 3.0);
-auto cameraFront = glm::vec3(0.0, 0.0, -1.0);
-auto cameraUp = glm::vec3(0.0, 1.0, 0.0);
+Camera camera{};
 
 void render(u32 width, u32 height) {
   glViewport(0, 0, width, height);
@@ -143,7 +139,7 @@ void render(u32 width, u32 height) {
     glm::mat4 model(1.0);
     model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.0, 0.0, 0.0));
 
-    glm::mat4 view(1.0);
+    // glm::mat4 view(1.0);
 
     // view = glm::translate(view, glm::vec3(0.0, 0.0, -3.0));
 
@@ -154,13 +150,13 @@ void render(u32 width, u32 height) {
     // view = glm::lookAt(glm::vec3(cameraX, 0.0f, cameraZ), glm::vec3(0.0f, 0.0f, 0.0),
     //                    glm::vec3(0.0f, 1.0f, 0.0f));
 
-    view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+    // view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
     glm::mat4 projection(1.0);
     projection = glm::perspective(glm::radians(45.0f), (f32)width / (f32)height, 0.1f, 100.0f);
 
     program_set_mat4f(program, "model", glm::value_ptr(model));
-    program_set_mat4f(program, "view", glm::value_ptr(view));
+    program_set_mat4f(program, "view", glm::value_ptr(camera.get_view_matrix()));
     program_set_mat4f(program, "projection", glm::value_ptr(projection));
   }
 
@@ -189,39 +185,54 @@ void *update_thread_main(void *args) {
       printf("[UpdateThread] update frame #%d, delta time %lld microseconds\n", frameIndex,
              deltaTime);
 
+      auto tick = deltaTime * 0.001f * 0.001f; // Seconds
+
       // Do some updates
 
       {
         // Reset camera's transform
         if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_SPACE)) {
-          // TODO
+          camera.reset();
         } else {
           // Camera rotation
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_UP)) {}
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_DOWN)) {}
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_LEFT)) {}
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_RIGHT)) {}
+          f32 xAngle = 0, yAngle = 0;
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_UP)) {
+            xAngle += camera.get_rotation_speed() * tick;
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_DOWN)) {
+            xAngle -= camera.get_rotation_speed() * tick;
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_LEFT)) {
+            yAngle += camera.get_rotation_speed() * tick;
+          }
+          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_RIGHT)) {
+            yAngle -= camera.get_rotation_speed() * tick;
+          }
+
+          camera.rotate(xAngle, yAngle);
 
           // Camera movement
-          auto moveSpeed = 0.001f * deltaTime / 1000.0f;
+          glm::vec3 offset{};
           if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_W)) {
-            cameraPos += moveSpeed * cameraFront;
+            offset += camera.get_movement_speed() * tick * camera.get_front();
           }
           if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_S)) {
-            cameraPos -= moveSpeed * cameraFront;
+            offset += camera.get_movement_speed() * tick * camera.get_back();
           }
           if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_A)) {
-            cameraPos -= moveSpeed * glm::normalize(glm::cross(cameraFront, cameraUp));
+            offset += camera.get_movement_speed() * tick * camera.get_left();
           }
           if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_D)) {
-            cameraPos += moveSpeed * glm::normalize(glm::cross(cameraFront, cameraUp));
+            offset += camera.get_movement_speed() * tick * camera.get_right();
           }
           if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_Q)) {
-            cameraPos += moveSpeed * cameraUp;
+            offset += camera.get_movement_speed() * tick * camera.get_up();
           }
           if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_E)) {
-            cameraPos -= moveSpeed * cameraUp;
+            offset += camera.get_movement_speed() * tick * camera.get_down();
           }
+
+          camera.move(offset);
         }
       }
 
