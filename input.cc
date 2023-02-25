@@ -1,5 +1,6 @@
 #include "input.h"
 #include "event.h"
+#include <cstdio>
 #include <cstring>
 
 static const u16 KEY_COUNT = 512;
@@ -53,6 +54,15 @@ bool input_system_process_key(void *state, u16 key, bool pressed) {
     return true;
   }
   return false;
+}
+
+bool input_system_process_mouse_wheel(void *state, f32 x, f32 y) {
+  auto s = (InputSystemState *)state;
+  EventContext context{};
+  context.f32[0] = x;
+  context.f32[1] = y;
+  event_fire(s->eventSystemState, EVENT_CODE_MOUSE_WHEEL, nullptr, context);
+  return true;
 }
 
 bool input_is_key_down(void *state, u16 key) {
