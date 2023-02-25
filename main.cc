@@ -124,7 +124,7 @@ void init() {
 
 Camera camera{};
 
-void render(u32 width, u32 height) {
+void render(u32 width, u32 height, const f32 *view_matrix) {
   glViewport(0, 0, width, height);
   // glEnable(GL_CULL_FACE);
   // glFrontFace(GL_CCW);
@@ -156,7 +156,7 @@ void render(u32 width, u32 height) {
     projection = glm::perspective(glm::radians(45.0f), (f32)width / (f32)height, 0.1f, 100.0f);
 
     program_set_mat4f(program, "model", glm::value_ptr(model));
-    program_set_mat4f(program, "view", glm::value_ptr(camera.get_view_matrix()));
+    program_set_mat4f(program, "view", view_matrix);
     program_set_mat4f(program, "projection", glm::value_ptr(projection));
   }
 
@@ -236,10 +236,15 @@ void *update_thread_main(void *args) {
         }
       }
 
-      context->renderThreadMessageQueue->push({
+      Message message{
           .type = MESSAGE_TYPE_RENDER,
           .u32[0] = frameIndex,
-      }); // Issue render commands
+      };
+
+      auto view = camera.get_view_matrix();
+      memcpy(message.f32, glm::value_ptr(view), sizeof(f32) * 16);
+
+      context->renderThreadMessageQueue->push(message); // Issue render commands
 
       if (frameIndex > 0) { // Wait for previous frame to be presented
         printf("[UpdateThread] frame #%d is waiting for frame #%d to be presented\n", frameIndex,
@@ -283,7 +288,7 @@ void *render_thread_main(void *args) {
       printf("[RenderThread] render frame #%d\n", message.u32[0]);
       int w, h;
       SDL_GL_GetDrawableSize(context->window, &w, &h);
-      render(w, h);
+      render(w, h, message.f32);
       glFinish();
       printf("[RenderThread] about to present frame #%d\n", message.u32[0]);
       SDL_GL_SwapWindow(context->window);

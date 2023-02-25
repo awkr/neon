@@ -24,6 +24,7 @@ struct Message {
   MessagePriority priority = MESSAGE_PRIORITY_NORMAL;
   u64 u64 = 0;
   u32 u32[2] = {};
+  f32 f32[16];
 
   bool operator<(const Message &rhs) const { return priority < rhs.priority; }
 };
