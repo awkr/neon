@@ -71,11 +71,14 @@ Frame frames[3] = {};
 
 struct Vertex {
   f32 position[3];
+  f32 normal[3];
   f32 texCoord[2];
 };
 
 bool event_on_quit(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
+
 bool event_on_key(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
+
 bool event_on_scroll(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
 
 void init() {
@@ -85,8 +88,9 @@ void init() {
 
   // Build and compile shader programs
   {
-    auto ok = program_create(&lightingProgram, {{GL_VERTEX_SHADER, "shaders/colors.vert"},
-                                                {GL_FRAGMENT_SHADER, "shaders/colors.frag"}});
+    auto ok =
+        program_create(&lightingProgram, {{GL_VERTEX_SHADER, "shaders/basic_lighting.vert"},
+                                          {GL_FRAGMENT_SHADER, "shaders/basic_lighting.frag"}});
     assert(ok);
   }
   {
@@ -100,40 +104,40 @@ void init() {
 
     Vertex vertices[kNumVertices] = {
         //
-        {{-0.5, -0.5, 0.5}, {0, 0}},
-        {{0.5, -0.5, 0.5}, {1, 0}},
-        {{-0.5, 0.5, 0.5}, {0, 1}},
-        {{0.5, 0.5, 0.5}, {1, 1}},
+        {{-0.5, -0.5, 0.5}, {0, 0, 1}, {0, 0}},
+        {{0.5, -0.5, 0.5}, {0, 0, 1}, {1, 0}},
+        {{-0.5, 0.5, 0.5}, {0, 0, 1}, {0, 1}},
+        {{0.5, 0.5, 0.5}, {0, 0, 1}, {1, 1}},
 
         //
-        {{0.5, -0.5, 0.5}, {0, 0}},
-        {{0.5, -0.5, -0.5}, {1, 0}},
-        {{0.5, 0.5, 0.5}, {0, 1}},
-        {{0.5, 0.5, -0.5}, {1, 1}},
+        {{0.5, -0.5, 0.5}, {1, 0, 0}, {0, 0}},
+        {{0.5, -0.5, -0.5}, {1, 0, 0}, {1, 0}},
+        {{0.5, 0.5, 0.5}, {1, 0, 0}, {0, 1}},
+        {{0.5, 0.5, -0.5}, {1, 0, 0}, {1, 1}},
 
         //
-        {{0.5, -0.5, -0.5}, {0, 0}},
-        {{-0.5, -0.5, -0.5}, {1, 0}},
-        {{0.5, 0.5, -0.5}, {0, 1}},
-        {{-0.5, 0.5, -0.5}, {1, 1}},
+        {{0.5, -0.5, -0.5}, {0, 0, -1}, {0, 0}},
+        {{-0.5, -0.5, -0.5}, {0, 0, -1}, {1, 0}},
+        {{0.5, 0.5, -0.5}, {0, 0, -1}, {0, 1}},
+        {{-0.5, 0.5, -0.5}, {0, 0, -1}, {1, 1}},
 
         //
-        {{-0.5, -0.5, -0.5}, {0, 0}},
-        {{-0.5, -0.5, 0.5}, {1, 0}},
-        {{-0.5, 0.5, -0.5}, {0, 1}},
-        {{-0.5, 0.5, 0.5}, {1, 1}},
+        {{-0.5, -0.5, -0.5}, {-1, 0, 0}, {0, 0}},
+        {{-0.5, -0.5, 0.5}, {-1, 0, 0}, {1, 0}},
+        {{-0.5, 0.5, -0.5}, {-1, 0, 0}, {0, 1}},
+        {{-0.5, 0.5, 0.5}, {-1, 0, 0}, {1, 1}},
 
         //
-        {{-0.5, 0.5, 0.5}, {0, 0}},
-        {{0.5, 0.5, 0.5}, {1, 0}},
-        {{-0.5, 0.5, -0.5}, {0, 1}},
-        {{0.5, 0.5, -0.5}, {1, 1}},
+        {{-0.5, 0.5, 0.5}, {0, 1, 0}, {0, 0}},
+        {{0.5, 0.5, 0.5}, {0, 1, 0}, {1, 0}},
+        {{-0.5, 0.5, -0.5}, {0, 1, 0}, {0, 1}},
+        {{0.5, 0.5, -0.5}, {0, 1, 0}, {1, 1}},
 
         //
-        {{-0.5, -0.5, -0.5}, {0, 0}},
-        {{0.5, -0.5, -0.5}, {1, 0}},
-        {{-0.5, -0.5, 0.5}, {0, 1}},
-        {{0.5, -0.5, 0.5}, {1, 1}},
+        {{-0.5, -0.5, -0.5}, {0, -1, 0}, {0, 0}},
+        {{0.5, -0.5, -0.5}, {0, -1, 0}, {1, 0}},
+        {{-0.5, -0.5, 0.5}, {0, -1, 0}, {0, 1}},
+        {{0.5, -0.5, 0.5}, {0, -1, 0}, {1, 1}},
     };
 
     glBindBuffer(GL_ARRAY_BUFFER, VBOs[VBO_CUBE]);
@@ -155,6 +159,9 @@ void init() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                           (any)offsetof(Vertex, position));
     glEnableVertexAttribArray(0);
+    // Attribute: normal
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (any)offsetof(Vertex, normal));
+    glEnableVertexAttribArray(1);
 
     // The call to glVertexAttribPointer already registered the last bound VBO as the vertex
     // attribute's bound vertex buffer object
@@ -247,6 +254,7 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   program_use(lightingProgram);
   program_set_vec3(lightingProgram, "objectColor", 1, 0.5, 0.3);
   program_set_vec3(lightingProgram, "lightColor", 1, 1, 1);
+  program_set_vec3(lightingProgram, "lightPosition", glm::value_ptr(lightPosition));
 
   program_set_mat4f(lightingProgram, "view", view_matrix);
 
