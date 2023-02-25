@@ -29,11 +29,11 @@ struct Context {
   void *inputSystemState;
 };
 
-enum { VAO_TRIANGLE, VAO_COUNT };
+enum { VAO_CUBE, VAO_COUNT };
 
-enum { VBO_TRIANGLE, VBO_COUNT };
+enum { VBO_CUBE, VBO_COUNT };
 
-enum { EBO_TRIANGLE, EBO_COUNT };
+enum { EBO_CUBE, EBO_COUNT };
 
 enum {
   vPosition = 0,
@@ -43,7 +43,8 @@ enum {
 GLuint VAOs[VAO_COUNT];
 GLuint VBOs[VBO_COUNT];
 GLuint EBOs[VBO_COUNT];
-const GLuint kNumVertices = 4;
+const GLuint kNumVertices = 24;
+const GLuint kNumIndices = 36;
 GLuint program;
 Texture *texture;
 
@@ -68,7 +69,7 @@ struct Frame {
 Frame frames[3] = {};
 
 struct Vertex {
-  f32 position[2];
+  f32 position[3];
   f32 texCoord[2];
 };
 
@@ -78,26 +79,61 @@ bool event_on_scroll(EventCode eventCode, EventContext eventContext, void *sende
 
 void init() {
   glGenVertexArrays(VAO_COUNT, VAOs);
-  glBindVertexArray(VAOs[VAO_TRIANGLE]);
+  glBindVertexArray(VAOs[VAO_CUBE]);
 
   Vertex vertices[kNumVertices] = {
-      {{-0.5f, -0.5f}, {0.0, 0.0}}, // Left bottom
-      {{0.5f, -0.5f}, {1.0, 0.0}},  // Right bottom
-      {{-0.5f, 0.5f}, {0.0, 1.0}},  // Left top
-      {{0.5f, 0.5f}, {1.0, 1.0}},   // Right top
+      //
+      {{-0.5, -0.5, 0.5}, {0, 0}},
+      {{0.5, -0.5, 0.5}, {1, 0}},
+      {{-0.5, 0.5, 0.5}, {0, 1}},
+      {{0.5, 0.5, 0.5}, {1, 1}},
+
+      //
+      {{0.5, -0.5, 0.5}, {0, 0}},
+      {{0.5, -0.5, -0.5}, {1, 0}},
+      {{0.5, 0.5, 0.5}, {0, 1}},
+      {{0.5, 0.5, -0.5}, {1, 1}},
+
+      //
+      {{0.5, -0.5, -0.5}, {0, 0}},
+      {{-0.5, -0.5, -0.5}, {1, 0}},
+      {{0.5, 0.5, -0.5}, {0, 1}},
+      {{-0.5, 0.5, -0.5}, {1, 1}},
+
+      //
+      {{-0.5, -0.5, -0.5}, {0, 0}},
+      {{-0.5, -0.5, 0.5}, {1, 0}},
+      {{-0.5, 0.5, -0.5}, {0, 1}},
+      {{-0.5, 0.5, 0.5}, {1, 1}},
+
+      //
+      {{-0.5, 0.5, 0.5}, {0, 0}},
+      {{0.5, 0.5, 0.5}, {1, 0}},
+      {{-0.5, 0.5, -0.5}, {0, 1}},
+      {{0.5, 0.5, -0.5}, {1, 1}},
+
+      //
+      {{-0.5, -0.5, -0.5}, {0, 0}},
+      {{0.5, -0.5, -0.5}, {1, 0}},
+      {{-0.5, -0.5, 0.5}, {0, 1}},
+      {{0.5, -0.5, 0.5}, {1, 1}},
   };
 
   glGenBuffers(VBO_COUNT, VBOs);
-  glBindBuffer(GL_ARRAY_BUFFER, VBOs[VBO_TRIANGLE]);
+  glBindBuffer(GL_ARRAY_BUFFER, VBOs[VBO_CUBE]);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-  u32 indices[6] = {
-      0, 1, 2, // Triangle 1
-      1, 3, 2, // Triangle 2
+  u32 indices[kNumIndices] = {
+      0,  1,  2,  1,  3,  2,  //
+      4,  5,  6,  5,  7,  6,  //
+      8,  9,  10, 9,  11, 10, //
+      12, 13, 14, 13, 15, 14, //
+      16, 17, 18, 17, 19, 18, //
+      20, 21, 22, 21, 23, 22, //
   };
 
   glGenBuffers(EBO_COUNT, EBOs);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[EBO_TRIANGLE]);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[EBO_CUBE]);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
   auto ok = texture_create(&texture, "container.jpg");
@@ -109,7 +145,7 @@ void init() {
 
   program_use(program);
 
-  glVertexAttribPointer(vPosition, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+  glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                         (any)offsetof(Vertex, position));
   glEnableVertexAttribArray(vPosition);
 
@@ -117,7 +153,7 @@ void init() {
                         (any)offsetof(Vertex, texCoord));
   glEnableVertexAttribArray(vTexCoord);
 
-  // The call to glVertexAttribPointer already registered `VBO_TRIANGLE` as the vertex attribute's
+  // The call to glVertexAttribPointer already registered `VBO_CUBE` as the vertex attribute's
   // bound vertex buffer object
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
@@ -128,18 +164,18 @@ f32 fov = 45.0f;
 
 void render(u32 width, u32 height, const f32 *view_matrix) {
   glViewport(0, 0, width, height);
-  // glEnable(GL_CULL_FACE);
-  // glFrontFace(GL_CCW);
-  // glCullFace(GL_BACK);
+  glEnable(GL_CULL_FACE);
+  glFrontFace(GL_CCW);
+  glCullFace(GL_BACK);
   glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glBindVertexArray(VAOs[VAO_TRIANGLE]);
+  glBindVertexArray(VAOs[VAO_CUBE]);
   program_use(program);
   texture_bind(texture);
 
   {
     glm::mat4 model(1.0);
-    model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.0, 0.0, 0.0));
+    // model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.0, 0.0, 0.0));
 
     // glm::mat4 view(1.0);
 
@@ -162,7 +198,7 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
     program_set_mat4f(program, "projection", glm::value_ptr(projection));
   }
 
-  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+  glDrawElements(GL_TRIANGLES, kNumIndices, GL_UNSIGNED_INT, nullptr);
 }
 
 void *update_thread_main(void *args) {
