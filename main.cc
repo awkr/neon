@@ -29,11 +29,11 @@ struct Context {
   void *inputSystemState;
 };
 
-enum { VAO_CUBE, VAO_COUNT };
+enum { VAO_CUBE, VAO_LIGHT, VAO_COUNT };
 
-enum { VBO_CUBE, VBO_COUNT };
+enum { VBO_CUBE, VBO_LIGHT, VBO_COUNT };
 
-enum { EBO_CUBE, EBO_COUNT };
+enum { EBO_CUBE, EBO_LIGHT, EBO_COUNT };
 
 enum {
   vPosition = 0,
@@ -45,7 +45,8 @@ GLuint VBOs[VBO_COUNT];
 GLuint EBOs[VBO_COUNT];
 const GLuint kNumVertices = 24;
 const GLuint kNumIndices = 36;
-GLuint program;
+GLuint lightingProgram;
+GLuint lightCubeProgram;
 Texture *texture;
 
 enum FrameState {
@@ -79,88 +80,158 @@ bool event_on_scroll(EventCode eventCode, EventContext eventContext, void *sende
 
 void init() {
   glGenVertexArrays(VAO_COUNT, VAOs);
-  glBindVertexArray(VAOs[VAO_CUBE]);
-
-  Vertex vertices[kNumVertices] = {
-      //
-      {{-0.5, -0.5, 0.5}, {0, 0}},
-      {{0.5, -0.5, 0.5}, {1, 0}},
-      {{-0.5, 0.5, 0.5}, {0, 1}},
-      {{0.5, 0.5, 0.5}, {1, 1}},
-
-      //
-      {{0.5, -0.5, 0.5}, {0, 0}},
-      {{0.5, -0.5, -0.5}, {1, 0}},
-      {{0.5, 0.5, 0.5}, {0, 1}},
-      {{0.5, 0.5, -0.5}, {1, 1}},
-
-      //
-      {{0.5, -0.5, -0.5}, {0, 0}},
-      {{-0.5, -0.5, -0.5}, {1, 0}},
-      {{0.5, 0.5, -0.5}, {0, 1}},
-      {{-0.5, 0.5, -0.5}, {1, 1}},
-
-      //
-      {{-0.5, -0.5, -0.5}, {0, 0}},
-      {{-0.5, -0.5, 0.5}, {1, 0}},
-      {{-0.5, 0.5, -0.5}, {0, 1}},
-      {{-0.5, 0.5, 0.5}, {1, 1}},
-
-      //
-      {{-0.5, 0.5, 0.5}, {0, 0}},
-      {{0.5, 0.5, 0.5}, {1, 0}},
-      {{-0.5, 0.5, -0.5}, {0, 1}},
-      {{0.5, 0.5, -0.5}, {1, 1}},
-
-      //
-      {{-0.5, -0.5, -0.5}, {0, 0}},
-      {{0.5, -0.5, -0.5}, {1, 0}},
-      {{-0.5, -0.5, 0.5}, {0, 1}},
-      {{0.5, -0.5, 0.5}, {1, 1}},
-  };
-
   glGenBuffers(VBO_COUNT, VBOs);
-  glBindBuffer(GL_ARRAY_BUFFER, VBOs[VBO_CUBE]);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-  u32 indices[kNumIndices] = {
-      0,  1,  2,  1,  3,  2,  //
-      4,  5,  6,  5,  7,  6,  //
-      8,  9,  10, 9,  11, 10, //
-      12, 13, 14, 13, 15, 14, //
-      16, 17, 18, 17, 19, 18, //
-      20, 21, 22, 21, 23, 22, //
-  };
-
   glGenBuffers(EBO_COUNT, EBOs);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[EBO_CUBE]);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-  auto ok = texture_create(&texture, "container.jpg");
-  assert(ok);
+  // Build and compile shader programs
+  {
+    auto ok = program_create(&lightingProgram, {{GL_VERTEX_SHADER, "shaders/colors.vert"},
+                                                {GL_FRAGMENT_SHADER, "shaders/colors.frag"}});
+    assert(ok);
+  }
+  {
+    auto ok = program_create(&lightCubeProgram, {{GL_VERTEX_SHADER, "shaders/light_cube.vert"},
+                                                 {GL_FRAGMENT_SHADER, "shaders/light_cube.frag"}});
+    assert(ok);
+  }
 
-  ok = program_create(&program,
-                      {{GL_VERTEX_SHADER, "shader.vert"}, {GL_FRAGMENT_SHADER, "shader.frag"}});
-  assert(ok);
+  { // Cube
+    glBindVertexArray(VAOs[VAO_CUBE]);
 
-  program_use(program);
+    Vertex vertices[kNumVertices] = {
+        //
+        {{-0.5, -0.5, 0.5}, {0, 0}},
+        {{0.5, -0.5, 0.5}, {1, 0}},
+        {{-0.5, 0.5, 0.5}, {0, 1}},
+        {{0.5, 0.5, 0.5}, {1, 1}},
 
-  glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        (any)offsetof(Vertex, position));
-  glEnableVertexAttribArray(vPosition);
+        //
+        {{0.5, -0.5, 0.5}, {0, 0}},
+        {{0.5, -0.5, -0.5}, {1, 0}},
+        {{0.5, 0.5, 0.5}, {0, 1}},
+        {{0.5, 0.5, -0.5}, {1, 1}},
 
-  glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
-                        (any)offsetof(Vertex, texCoord));
-  glEnableVertexAttribArray(vTexCoord);
+        //
+        {{0.5, -0.5, -0.5}, {0, 0}},
+        {{-0.5, -0.5, -0.5}, {1, 0}},
+        {{0.5, 0.5, -0.5}, {0, 1}},
+        {{-0.5, 0.5, -0.5}, {1, 1}},
 
-  // The call to glVertexAttribPointer already registered `VBO_CUBE` as the vertex attribute's
-  // bound vertex buffer object
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindVertexArray(0);
+        //
+        {{-0.5, -0.5, -0.5}, {0, 0}},
+        {{-0.5, -0.5, 0.5}, {1, 0}},
+        {{-0.5, 0.5, -0.5}, {0, 1}},
+        {{-0.5, 0.5, 0.5}, {1, 1}},
+
+        //
+        {{-0.5, 0.5, 0.5}, {0, 0}},
+        {{0.5, 0.5, 0.5}, {1, 0}},
+        {{-0.5, 0.5, -0.5}, {0, 1}},
+        {{0.5, 0.5, -0.5}, {1, 1}},
+
+        //
+        {{-0.5, -0.5, -0.5}, {0, 0}},
+        {{0.5, -0.5, -0.5}, {1, 0}},
+        {{-0.5, -0.5, 0.5}, {0, 1}},
+        {{0.5, -0.5, 0.5}, {1, 1}},
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[VBO_CUBE]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    u32 indices[kNumIndices] = {
+        0,  1,  2,  1,  3,  2,  //
+        4,  5,  6,  5,  7,  6,  //
+        8,  9,  10, 9,  11, 10, //
+        12, 13, 14, 13, 15, 14, //
+        16, 17, 18, 17, 19, 18, //
+        20, 21, 22, 21, 23, 22, //
+    };
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[EBO_CUBE]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // Attribute: position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          (any)offsetof(Vertex, position));
+    glEnableVertexAttribArray(0);
+
+    // The call to glVertexAttribPointer already registered the last bound VBO as the vertex
+    // attribute's bound vertex buffer object
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+  }
+
+  { // Light
+    glBindVertexArray(VAOs[VAO_LIGHT]);
+
+    Vertex vertices[kNumVertices] = {
+        //
+        {{-0.5, -0.5, 0.5}, {0, 0}},
+        {{0.5, -0.5, 0.5}, {1, 0}},
+        {{-0.5, 0.5, 0.5}, {0, 1}},
+        {{0.5, 0.5, 0.5}, {1, 1}},
+
+        //
+        {{0.5, -0.5, 0.5}, {0, 0}},
+        {{0.5, -0.5, -0.5}, {1, 0}},
+        {{0.5, 0.5, 0.5}, {0, 1}},
+        {{0.5, 0.5, -0.5}, {1, 1}},
+
+        //
+        {{0.5, -0.5, -0.5}, {0, 0}},
+        {{-0.5, -0.5, -0.5}, {1, 0}},
+        {{0.5, 0.5, -0.5}, {0, 1}},
+        {{-0.5, 0.5, -0.5}, {1, 1}},
+
+        //
+        {{-0.5, -0.5, -0.5}, {0, 0}},
+        {{-0.5, -0.5, 0.5}, {1, 0}},
+        {{-0.5, 0.5, -0.5}, {0, 1}},
+        {{-0.5, 0.5, 0.5}, {1, 1}},
+
+        //
+        {{-0.5, 0.5, 0.5}, {0, 0}},
+        {{0.5, 0.5, 0.5}, {1, 0}},
+        {{-0.5, 0.5, -0.5}, {0, 1}},
+        {{0.5, 0.5, -0.5}, {1, 1}},
+
+        //
+        {{-0.5, -0.5, -0.5}, {0, 0}},
+        {{0.5, -0.5, -0.5}, {1, 0}},
+        {{-0.5, -0.5, 0.5}, {0, 1}},
+        {{0.5, -0.5, 0.5}, {1, 1}},
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBOs[VBO_LIGHT]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    u32 indices[kNumIndices] = {
+        0,  1,  2,  1,  3,  2,  //
+        4,  5,  6,  5,  7,  6,  //
+        8,  9,  10, 9,  11, 10, //
+        12, 13, 14, 13, 15, 14, //
+        16, 17, 18, 17, 19, 18, //
+        20, 21, 22, 21, 23, 22, //
+    };
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[EBO_LIGHT]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // Attribute: position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          (any)offsetof(Vertex, position));
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+  }
 }
 
 Camera camera{};
-f32 fov = 45.0f;
+f32 fov = 60.0f;
+
+glm::vec3 lightPosition = {1.5, 1, 2};
 
 void render(u32 width, u32 height, const f32 *view_matrix) {
   glViewport(0, 0, width, height);
@@ -169,36 +240,42 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   glCullFace(GL_BACK);
   glEnable(GL_DEPTH_TEST);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glBindVertexArray(VAOs[VAO_CUBE]);
-  program_use(program);
-  texture_bind(texture);
+
+  // Render the cube
+
+  // Active shader programs before setting uniforms
+  program_use(lightingProgram);
+  program_set_vec3(lightingProgram, "objectColor", 1, 0.5, 0.3);
+  program_set_vec3(lightingProgram, "lightColor", 1, 1, 1);
+
+  program_set_mat4f(lightingProgram, "view", view_matrix);
+
+  glm::mat4 projection(1.0);
+  projection = glm::perspective(glm::radians(fov), (f32)width / (f32)height, 0.1f, 100.0f);
+
+  program_set_mat4f(lightingProgram, "projection", glm::value_ptr(projection));
 
   {
     glm::mat4 model(1.0);
-    // model = glm::rotate(model, glm::radians(-45.0f), glm::vec3(1.0, 0.0, 0.0));
-
-    // glm::mat4 view(1.0);
-
-    // view = glm::translate(view, glm::vec3(0.0, 0.0, -3.0));
-
-    // f32 radius = 5.0f;
-    // auto seconds = (f32)SDL_GetTicks64() / 1000.0f;
-    // f32 cameraX = sin(seconds) * radius;
-    // f32 cameraZ = cos(seconds) * radius;
-    // view = glm::lookAt(glm::vec3(cameraX, 0.0f, cameraZ), glm::vec3(0.0f, 0.0f, 0.0),
-    //                    glm::vec3(0.0f, 1.0f, 0.0f));
-
-    // view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
-    glm::mat4 projection(1.0);
-    projection = glm::perspective(glm::radians(fov), (f32)width / (f32)height, 0.1f, 100.0f);
-
-    program_set_mat4f(program, "model", glm::value_ptr(model));
-    program_set_mat4f(program, "view", view_matrix);
-    program_set_mat4f(program, "projection", glm::value_ptr(projection));
+    program_set_mat4f(lightingProgram, "model", glm::value_ptr(model));
   }
 
+  glBindVertexArray(VAOs[VAO_CUBE]);
   glDrawElements(GL_TRIANGLES, kNumIndices, GL_UNSIGNED_INT, nullptr);
+
+  { // Render the lamp
+    program_use(lightCubeProgram);
+    program_set_mat4f(lightCubeProgram, "view", view_matrix);
+    program_set_mat4f(lightCubeProgram, "projection", glm::value_ptr(projection));
+
+    glm::mat4 model(1.0);
+    model = glm::translate(model, lightPosition);
+    model = glm::scale(model, glm::vec3(0.125f));
+    program_set_mat4f(lightCubeProgram, "model", glm::value_ptr(model));
+
+    glBindVertexArray(VAOs[VAO_LIGHT]);
+    glDrawElements(GL_TRIANGLES, kNumIndices, GL_UNSIGNED_INT, nullptr);
+  }
 }
 
 void *update_thread_main(void *args) {
@@ -231,7 +308,7 @@ void *update_thread_main(void *args) {
         // Reset camera's transform
         if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_SPACE)) {
           camera.reset();
-          fov = 45.0f;
+          fov = 60.0f;
         } else {
           // Camera rotation
           f32 xAngle = 0, yAngle = 0;

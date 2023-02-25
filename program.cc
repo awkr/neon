@@ -1,7 +1,5 @@
-#include "filesystem.h"
 #include "program.h"
-#include <cstdio>
-#include <cstdlib>
+#include "filesystem.h"
 
 bool shader_create(GLuint *shader, GLuint type, const char *path);
 void shader_destroy(GLuint shader);
@@ -101,6 +99,14 @@ void program_set_f32(GLuint program, const char *name, f32 a) {
 
 void program_set_bool(GLuint program, const char *name, bool a) {
   glUniform1i(program_get_uniform_location(program, name), a);
+}
+
+void program_set_vec3(GLuint program, const char *name, const GLfloat *a) {
+  glUniform3fv(program_get_uniform_location(program, name), 1, a);
+}
+
+void program_set_vec3(GLuint program, const char *name, GLfloat x, GLfloat y, GLfloat z) {
+  glUniform3f(program_get_uniform_location(program, name), x, y, z);
 }
 
 void program_set_mat4f(GLuint program, const char *name, const GLfloat *a) {
