@@ -238,7 +238,7 @@ void init() {
 Camera camera{};
 f32 fov = 60.0f;
 
-glm::vec3 lightPosition = {1.5, 1, 2};
+glm::vec3 lightPosition = {0.25, 0.5, 2};
 
 void render(u32 width, u32 height, const f32 *view_matrix) {
   glViewport(0, 0, width, height);
@@ -255,6 +255,7 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   program_set_vec3(lightingProgram, "objectColor", 1, 0.5, 0.3);
   program_set_vec3(lightingProgram, "lightColor", 1, 1, 1);
   program_set_vec3(lightingProgram, "lightPosition", glm::value_ptr(lightPosition));
+  program_set_vec3(lightingProgram, "cameraPosition", glm::value_ptr(camera.get_position()));
 
   program_set_mat4f(lightingProgram, "view", view_matrix);
 

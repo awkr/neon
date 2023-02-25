@@ -17,7 +17,9 @@ public:
 
   void reset();
 
-  glm::quat get_orientation() { return _orientation; }
+  const glm::vec3 &get_position() const { return _position; }
+
+  const glm::quat &get_orientation() const { return _orientation; }
 
   glm::mat4 get_view_matrix();
 
