@@ -74,6 +74,7 @@ struct Vertex {
 
 bool event_on_quit(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
 bool event_on_key(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
+bool event_on_scroll(EventCode eventCode, EventContext eventContext, void *sender, void *listener);
 
 void init() {
   glGenVertexArrays(VAO_COUNT, VAOs);
@@ -123,6 +124,7 @@ void init() {
 }
 
 Camera camera{};
+f32 fov = 45.0f;
 
 void render(u32 width, u32 height, const f32 *view_matrix) {
   glViewport(0, 0, width, height);
@@ -153,7 +155,7 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
     // view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
     glm::mat4 projection(1.0);
-    projection = glm::perspective(glm::radians(45.0f), (f32)width / (f32)height, 0.1f, 100.0f);
+    projection = glm::perspective(glm::radians(fov), (f32)width / (f32)height, 0.1f, 100.0f);
 
     program_set_mat4f(program, "model", glm::value_ptr(model));
     program_set_mat4f(program, "view", view_matrix);
@@ -182,8 +184,8 @@ void *update_thread_main(void *args) {
       time = startTime;
 
       auto frameIndex = message.u32[0];
-      printf("[UpdateThread] update frame #%d, delta time %lld microseconds\n", frameIndex,
-             deltaTime);
+      // printf("[UpdateThread] update frame #%d, delta time %lld microseconds\n", frameIndex,
+      //        deltaTime);
 
       auto tick = deltaTime * 0.001f * 0.001f; // Seconds
 
@@ -193,6 +195,7 @@ void *update_thread_main(void *args) {
         // Reset camera's transform
         if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_SPACE)) {
           camera.reset();
+          fov = 45.0f;
         } else {
           // Camera rotation
           f32 xAngle = 0, yAngle = 0;
@@ -234,6 +237,8 @@ void *update_thread_main(void *args) {
 
           camera.move(offset);
         }
+
+        //
       }
 
       Message message{
@@ -247,8 +252,8 @@ void *update_thread_main(void *args) {
       context->renderThreadMessageQueue->push(message); // Issue render commands
 
       if (frameIndex > 0) { // Wait for previous frame to be presented
-        printf("[UpdateThread] frame #%d is waiting for frame #%d to be presented\n", frameIndex,
-               frameIndex - 1);
+        // printf("[UpdateThread] frame #%d is waiting for frame #%d to be presented\n", frameIndex,
+        //        frameIndex - 1);
         auto &frame = frames[frameIndex - 1];
         std::unique_lock<std::mutex> lock(frame.mutex);
         frame.condition.wait(lock, [&]() { return frame.state == FRAME_STATE_PRESENTED; });
@@ -285,14 +290,14 @@ void *render_thread_main(void *args) {
     switch (message.type) {
     case MESSAGE_TYPE_QUIT: quit = true; break;
     case MESSAGE_TYPE_RENDER: {
-      printf("[RenderThread] render frame #%d\n", message.u32[0]);
+      // printf("[RenderThread] render frame #%d\n", message.u32[0]);
       int w, h;
       SDL_GL_GetDrawableSize(context->window, &w, &h);
       render(w, h, message.f32);
       glFinish();
-      printf("[RenderThread] about to present frame #%d\n", message.u32[0]);
+      // printf("[RenderThread] about to present frame #%d\n", message.u32[0]);
       SDL_GL_SwapWindow(context->window);
-      printf("[RenderThread] frame #%d presented\n", message.u32[0]);
+      // printf("[RenderThread] frame #%d presented\n", message.u32[0]);
       {
         auto &frame = frames[message.u32[0]];
         std::lock_guard<std::mutex> lock(frame.mutex);
@@ -312,6 +317,7 @@ int main(int argc, char **argv) {
   event_register(context.eventSystemState, EVENT_CODE_KEYBOARD_PRESSED, &context, event_on_key);
   event_register(context.eventSystemState, EVENT_CODE_KEYBOARD_RELEASED, &context, event_on_key);
   event_register(context.eventSystemState, EVENT_CODE_QUIT, &context, event_on_quit);
+  event_register(context.eventSystemState, EVENT_CODE_MOUSE_WHEEL, &context, event_on_scroll);
   if (SDL_Init(SDL_INIT_EVERYTHING)) {
     fprintf(stderr, "error initializing SDL: %s\n", SDL_GetError());
     return EXIT_FAILURE;
@@ -366,6 +372,10 @@ int main(int argc, char **argv) {
         input_system_process_key(context.inputSystemState, event.key.keysym.scancode,
                                  event.type == SDL_KEYDOWN);
       } break;
+      case SDL_MOUSEWHEEL: {
+        input_system_process_mouse_wheel(context.inputSystemState, event.wheel.preciseX,
+                                         event.wheel.preciseY);
+      } break;
       default: break;
       }
     }
@@ -383,6 +393,7 @@ int main(int argc, char **argv) {
   pthread_join(updateThread, nullptr);
   SDL_DestroyWindow(window);
   SDL_Quit();
+  event_deregister(context.eventSystemState, EVENT_CODE_MOUSE_WHEEL, &context, event_on_scroll);
   event_deregister(context.eventSystemState, EVENT_CODE_QUIT, &context, event_on_quit);
   event_deregister(context.eventSystemState, EVENT_CODE_KEYBOARD_RELEASED, &context, event_on_key);
   event_deregister(context.eventSystemState, EVENT_CODE_KEYBOARD_PRESSED, &context, event_on_key);
@@ -403,5 +414,11 @@ bool event_on_key(EventCode eventCode, EventContext eventContext, void *sender, 
       event_fire(context->eventSystemState, EVENT_CODE_QUIT, nullptr, {});
     }
   }
+  return true;
+}
+
+bool event_on_scroll(EventCode eventCode, EventContext eventContext, void *sender, void *listener) {
+  fov += eventContext.f32[1];
+  fov = std::min(std::max(fov, 30.0f), 160.0f);
   return true;
 }
