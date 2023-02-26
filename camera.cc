@@ -1,4 +1,5 @@
 #include "camera.h"
+#include <cstdio>
 
 Camera::Camera(const glm::vec3 &position) : _position{position} {}
 
@@ -6,9 +7,9 @@ Camera::Camera(f32 x, f32 y, f32 z) : _position{x, y, z} {}
 
 void Camera::move(const glm::vec3 &offset) { _position += offset; }
 
-void Camera::rotate(f32 x, f32 y) {
-  _yow += y;
-  _pitch += x;
+void Camera::rotate(f32 pitch, f32 yaw) {
+  _pitch += pitch;
+  _yaw += yaw;
 
   update_orientation();
 }
@@ -16,7 +17,7 @@ void Camera::rotate(f32 x, f32 y) {
 void Camera::reset() {
   _position = glm::vec3(0.0, 0.0, 3.0);
   _pitch = 0;
-  _yow = 0;
+  _yaw = 0;
   update_orientation();
 }
 
@@ -45,7 +46,7 @@ glm::vec3 Camera::get_right() { return glm::normalize(glm::cross(get_front(), ge
 glm::vec3 Camera::get_left() { return -get_right(); }
 
 void Camera::update_orientation() {
-  auto aroundY = glm::angleAxis(glm::radians(_yow), glm::vec3(0, 1, 0));
+  auto aroundY = glm::angleAxis(glm::radians(_yaw), glm::vec3(0, 1, 0));
   auto aroundX = glm::angleAxis(glm::radians(_pitch), glm::vec3(1, 0, 0));
 
   _orientation = aroundY * aroundX;

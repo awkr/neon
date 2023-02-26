@@ -13,13 +13,16 @@ public:
 
   void move(const glm::vec3 &offset);
 
-  void rotate(f32 x, f32 y);
+  void rotate(f32 pitch, f32 yaw);
 
   void reset();
 
   const glm::vec3 &get_position() const { return _position; }
 
   const glm::quat &get_orientation() const { return _orientation; }
+
+  f32 get_pitch() const { return _pitch; }
+  f32 get_yaw() const { return _yaw; }
 
   glm::mat4 get_view_matrix();
 
@@ -46,7 +49,7 @@ private:
   glm::vec3 _position = {0.0, 0.0, 0.0};
   glm::quat _orientation = {1, 0, 0, 0};
   f32 _pitch = 0.0f;
-  f32 _yow = 0.0f;
+  f32 _yaw = 0.0f;
 
   f32 _rotationSpeed = 45.0f;
   f32 _movementSpeed = 1.5f;

@@ -31,6 +31,9 @@ void input_system_initialize(void **state, void *eventSystemState);
 void input_system_shutdown(void **state);
 void input_system_update(void *state);
 bool input_system_process_key(void *state, u16 key, bool pressed);
-bool input_system_process_mouse_wheel(void *state, f32 x, f32 y);
+bool input_system_process_mouse_wheel(void *state, i32 ix, i32 iy, f32 fx, f32 fy);
 bool input_is_key_down(void *state, u16 key);
+bool input_is_key_up(void *state, u16 key);
 bool input_was_key_down(void *state, u16 key);
+bool input_get_mouse_wheel(void *state, i32 *ix = nullptr, i32 *iy = nullptr, f32 *fx = nullptr,
+                           f32 *fy = nullptr);

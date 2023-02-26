@@ -320,21 +320,40 @@ void *update_thread_main(void *args) {
           fov = 60.0f;
         } else {
           // Camera rotation
-          f32 xAngle = 0, yAngle = 0;
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_UP)) {
-            xAngle += camera.get_rotation_speed() * tick;
-          }
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_DOWN)) {
-            xAngle -= camera.get_rotation_speed() * tick;
-          }
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_LEFT)) {
-            yAngle += camera.get_rotation_speed() * tick;
-          }
-          if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_RIGHT)) {
-            yAngle -= camera.get_rotation_speed() * tick;
-          }
 
-          camera.rotate(xAngle, yAngle);
+          i32 ix = 0, iy = 0;
+          f32 fx = 0, fy = 0;
+          input_get_mouse_wheel(context->inputSystemState, &ix, &iy, &fx, &fy);
+
+          if (ix != 0 || iy != 0) {
+            f32 wheel_sensitivity = 72.0f;
+            if (ix < 0) {
+              fx = -1;
+            } else if (ix > 0) {
+              fx = 1;
+            }
+            if (iy < 0) {
+              fy = -1;
+            } else if (iy > 0) {
+              fy = 1;
+            }
+            camera.rotate(-fy * tick * wheel_sensitivity, fx * tick * wheel_sensitivity);
+          } else {
+            f32 pitch = 0, yaw = 0;
+            if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_UP)) {
+              pitch += camera.get_rotation_speed() * tick;
+            }
+            if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_DOWN)) {
+              pitch -= camera.get_rotation_speed() * tick;
+            }
+            if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_LEFT)) {
+              yaw += camera.get_rotation_speed() * tick;
+            }
+            if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_RIGHT)) {
+              yaw -= camera.get_rotation_speed() * tick;
+            }
+            camera.rotate(pitch, yaw);
+          }
 
           // Camera movement
           glm::vec3 offset{};
@@ -363,15 +382,15 @@ void *update_thread_main(void *args) {
         //
       }
 
-      Message message{
+      Message outgoing{
           .type = MESSAGE_TYPE_RENDER,
           .u32[0] = frameIndex,
       };
 
       auto view = camera.get_view_matrix();
-      memcpy(message.f32, glm::value_ptr(view), sizeof(f32) * 16);
+      memcpy(outgoing.f32, glm::value_ptr(view), sizeof(f32) * 16);
 
-      context->renderThreadMessageQueue->push(message); // Issue render commands
+      context->renderThreadMessageQueue->push(outgoing); // Issue render commands
 
       if (frameIndex > 0) { // Wait for previous frame to be presented
         // printf("[UpdateThread] frame #%d is waiting for frame #%d to be presented\n", frameIndex,
@@ -448,9 +467,9 @@ int main(int argc, char **argv) {
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-  auto window = SDL_CreateWindow("neon", 0, 0, 640, 480,
-                                 SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE |
-                                     SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+  auto window = SDL_CreateWindow(
+      "neon", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1024, 360,
+      SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
   if (!window) {
     fprintf(stderr, "error creating window: %s\n", SDL_GetError());
     SDL_Quit();
@@ -495,8 +514,8 @@ int main(int argc, char **argv) {
                                  event.type == SDL_KEYDOWN);
       } break;
       case SDL_MOUSEWHEEL: {
-        input_system_process_mouse_wheel(context.inputSystemState, event.wheel.preciseX,
-                                         event.wheel.preciseY);
+        input_system_process_mouse_wheel(context.inputSystemState, event.wheel.x, event.wheel.y,
+                                         event.wheel.preciseX, event.wheel.preciseY);
       } break;
       default: break;
       }
@@ -540,7 +559,5 @@ bool event_on_key(EventCode eventCode, EventContext eventContext, void *sender, 
 }
 
 bool event_on_scroll(EventCode eventCode, EventContext eventContext, void *sender, void *listener) {
-  fov += eventContext.f32[1];
-  fov = std::min(std::max(fov, 30.0f), 160.0f);
   return true;
 }
