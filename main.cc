@@ -238,6 +238,11 @@ void init() {
 Camera camera{};
 f32 fov = 60.0f;
 
+f32 destPitch = camera.get_pitch();
+f32 destYaw = camera.get_yaw();
+f32 duration = 0.4;
+f32 elapsed = 0;
+
 glm::vec3 lightPosition = {0.25, 0.5, 2};
 
 void render(u32 width, u32 height, const f32 *view_matrix) {
@@ -325,34 +330,63 @@ void *update_thread_main(void *args) {
           f32 fx = 0, fy = 0;
           input_get_mouse_wheel(context->inputSystemState, &ix, &iy, &fx, &fy);
 
+          f32 deltaPitch = 0, deltaYaw = 0;
+
+          /**
+           * Calculate destination rotation;
+           * Lerp from current rotation to the destination rotation
+           */
+
           if (ix != 0 || iy != 0) {
-            f32 wheel_sensitivity = 72.0f;
-            if (ix < 0) {
-              fx = -1;
-            } else if (ix > 0) {
-              fx = 1;
-            }
-            if (iy < 0) {
-              fy = -1;
-            } else if (iy > 0) {
-              fy = 1;
-            }
-            camera.rotate(-fy * tick * wheel_sensitivity, fx * tick * wheel_sensitivity);
+            f32 wheel_sensitivity = 196.0f;
+            deltaPitch = fy * tick * wheel_sensitivity;
+            deltaYaw = -fx * tick * wheel_sensitivity;
+
+            destPitch += deltaPitch;
+            destYaw += deltaYaw;
+            elapsed = tick;
           } else {
-            f32 pitch = 0, yaw = 0;
+            bool pressed = false;
             if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_UP)) {
-              pitch += camera.get_rotation_speed() * tick;
+              deltaPitch += camera.get_rotation_speed() * tick;
+              pressed = true;
             }
             if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_DOWN)) {
-              pitch -= camera.get_rotation_speed() * tick;
+              deltaPitch -= camera.get_rotation_speed() * tick;
+              pressed = true;
             }
             if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_LEFT)) {
-              yaw += camera.get_rotation_speed() * tick;
+              deltaYaw += camera.get_rotation_speed() * tick;
+              pressed = true;
             }
             if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_RIGHT)) {
-              yaw -= camera.get_rotation_speed() * tick;
+              deltaYaw -= camera.get_rotation_speed() * tick;
+              pressed = true;
             }
-            camera.rotate(pitch, yaw);
+
+            if (pressed) {
+              destPitch += deltaPitch;
+              destYaw += deltaYaw;
+              elapsed = tick;
+            }
+          }
+
+          // Simply jump to the destination
+          // camera.rotate_to(camera.get_pitch() + deltaPitch, camera.get_yaw() + deltaYaw);
+
+          // Or using lerp
+          f32 currentPitch = camera.get_pitch();
+          f32 currentYaw = camera.get_yaw();
+
+          // Check current and destination values not the duration
+          if (fabs(currentPitch - destPitch) > 0.0001f || fabs(currentYaw - destYaw) > 0.0001f) {
+            elapsed += tick * 2.0f;
+            f32 pitch = lerp(currentPitch, destPitch, ease_out_sine(elapsed));
+            f32 yaw = lerp(currentYaw, destYaw, ease_out_sine(elapsed));
+            // Or linear
+            // f32 pitch = lerp(currentPitch, destPitch, elapsed / duration);
+            // f32 yaw = lerp(currentYaw, destYaw, elapsed / duration);
+            camera.rotate_to(pitch, yaw);
           }
 
           // Camera movement
@@ -400,10 +434,10 @@ void *update_thread_main(void *args) {
         frame.condition.wait(lock, [&]() { return frame.state == FRAME_STATE_PRESENTED; });
       }
 
-      auto duration =
+      auto cost =
           std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - startTime).count();
       auto lifespan = (u64)(1 / 60.0f * 1e9); // Nanoseconds
-      if (duration < lifespan) { sleep_for((double)(lifespan - duration) / 1e9); }
+      if (cost < lifespan) { sleep_for((double)(lifespan - cost) / 1e9); }
 
       context->updateThreadMessageQueue->push({
           .type = MESSAGE_TYPE_UPDATE,

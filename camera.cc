@@ -14,6 +14,13 @@ void Camera::rotate(f32 pitch, f32 yaw) {
   update_orientation();
 }
 
+void Camera::rotate_to(f32 pitch, f32 yaw) {
+  _pitch = pitch;
+  _yaw = yaw;
+
+  update_orientation();
+}
+
 void Camera::reset() {
   _position = glm::vec3(0.0, 0.0, 3.0);
   _pitch = 0;

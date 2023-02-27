@@ -14,6 +14,7 @@ public:
   void move(const glm::vec3 &offset);
 
   void rotate(f32 pitch, f32 yaw);
+  void rotate_to(f32 pitch, f32 yaw);
 
   void reset();
 
