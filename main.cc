@@ -88,9 +88,8 @@ void init() {
 
   // Build and compile shader programs
   {
-    auto ok =
-        program_create(&lightingProgram, {{GL_VERTEX_SHADER, "shaders/basic_lighting.vert"},
-                                          {GL_FRAGMENT_SHADER, "shaders/basic_lighting.frag"}});
+    auto ok = program_create(&lightingProgram, {{GL_VERTEX_SHADER, "shaders/materials.vert"},
+                                                {GL_FRAGMENT_SHADER, "shaders/materials.frag"}});
     assert(ok);
   }
   {
@@ -257,10 +256,19 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
 
   // Active shader programs before setting uniforms
   program_use(lightingProgram);
-  program_set_vec3(lightingProgram, "objectColor", 1, 0.5, 0.3);
-  program_set_vec3(lightingProgram, "lightColor", 1, 1, 1);
-  program_set_vec3(lightingProgram, "lightPosition", glm::value_ptr(lightPosition));
-  program_set_vec3(lightingProgram, "cameraPosition", glm::value_ptr(camera.get_position()));
+  program_set_vec3(lightingProgram, "light.position", glm::value_ptr(lightPosition));
+  program_set_vec3(lightingProgram, "viewPosition", glm::value_ptr(camera.get_position()));
+
+  // Material properties
+  program_set_vec3(lightingProgram, "material.ambient", 1.0, 0.5, 0.31);
+  program_set_vec3(lightingProgram, "material.diffuse", 1.0, 0.5, 0.31);
+  program_set_vec3(lightingProgram, "material.specular", 0.5, 0.5, 0.5);
+  program_set_f32(lightingProgram, "material.shininess", 32.0);
+
+  // Lighting properties
+  program_set_vec3(lightingProgram, "light.ambient", 0.2, 0.2, 0.2);
+  program_set_vec3(lightingProgram, "light.diffuse", 0.5, 0.5, 0.5);
+  program_set_vec3(lightingProgram, "light.specular", 1, 1, 1);
 
   program_set_mat4f(lightingProgram, "view", view_matrix);
 
@@ -534,6 +542,7 @@ int main(int argc, char **argv) {
       .u32[0] = 0, // Starts from frame #0
   });
   input_system_initialize(&context.inputSystemState, context.eventSystemState);
+  bool is_mouse_button_down = false;
   SDL_Event event;
   while (!context.quit) {
     while (SDL_PollEvent(&event)) {
@@ -550,6 +559,17 @@ int main(int argc, char **argv) {
       case SDL_MOUSEWHEEL: {
         input_system_process_mouse_wheel(context.inputSystemState, event.wheel.x, event.wheel.y,
                                          event.wheel.preciseX, event.wheel.preciseY);
+      } break;
+      case SDL_MOUSEBUTTONDOWN: {
+        printf("mouse button down\n");
+        is_mouse_button_down = true;
+      } break;
+      case SDL_MOUSEBUTTONUP: {
+        printf("mouse button up\n");
+        is_mouse_button_down = false;
+      } break;
+      case SDL_MOUSEMOTION: {
+        if (is_mouse_button_down) { printf("mouse motion\n"); }
       } break;
       default: break;
       }
