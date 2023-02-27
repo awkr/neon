@@ -331,6 +331,8 @@ void *update_thread_main(void *args) {
         if (input_is_key_down(context->inputSystemState, SDL_SCANCODE_SPACE)) {
           camera.reset();
           fov = 60.0f;
+          destPitch = 0.0f;
+          destYaw = 0.0f;
         } else {
           // Camera rotation
 
