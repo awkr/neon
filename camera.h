@@ -53,5 +53,5 @@ private:
   f32 _yaw = 0.0f;
 
   f32 _rotationSpeed = 45.0f;
-  f32 _movementSpeed = 1.5f;
+  f32 _movementSpeed = 1.75f;
 };

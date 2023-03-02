@@ -348,7 +348,7 @@ void *update_thread_main(void *args) {
            */
 
           if (ix != 0 || iy != 0) {
-            f32 wheel_sensitivity = 196.0f;
+            f32 wheel_sensitivity = 180.0f;
             deltaPitch = fy * tick * wheel_sensitivity;
             deltaYaw = -fx * tick * wheel_sensitivity;
 
@@ -390,7 +390,7 @@ void *update_thread_main(void *args) {
 
           // Check current and destination values not the duration
           if (fabs(currentPitch - destPitch) > 0.0001f || fabs(currentYaw - destYaw) > 0.0001f) {
-            elapsed += tick * 2.0f;
+            elapsed += tick * 0.6f;
             f32 pitch = lerp(currentPitch, destPitch, ease_out_sine(elapsed));
             f32 yaw = lerp(currentYaw, destYaw, ease_out_sine(elapsed));
             // Or linear
