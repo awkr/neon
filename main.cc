@@ -258,6 +258,10 @@ f32 elapsed = 0;
 
 glm::vec3 lightPosition = {0.25, 0.25, 2};
 
+glm::vec3 pointLightPositions[] = {
+    {0.7, 0.2, 2.0},
+};
+
 void render(u32 width, u32 height, const f32 *view_matrix) {
   glViewport(0, 0, width, height);
   glEnable(GL_CULL_FACE);
@@ -271,9 +275,34 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
 
   // Active shader programs before setting uniforms
   program_use(lightingProgram);
-  program_set_vec3(lightingProgram, "light.position", glm::value_ptr(lightPosition));
-  program_set_vec3(lightingProgram, "light.direction", glm::value_ptr(glm::vec3{0.0, 0.0, -1.0}));
-  program_set_vec3(lightingProgram, "viewPosition", glm::value_ptr(camera.get_position()));
+
+  // directional light
+  program_set_vec3(lightingProgram, "directionalLight.direction", -0.2f, -1.0f, -0.3f);
+  program_set_vec3(lightingProgram, "directionalLight.ambient", 0.05, 0.05, 0.05);
+  program_set_vec3(lightingProgram, "directionalLight.diffuse", 0.4, 0.4, 0.4);
+  program_set_vec3(lightingProgram, "directionalLight.specular", 0.5, 0.5, 0.5);
+
+  // point light 1
+  program_set_vec3(lightingProgram, "pointLights[0].position",
+                   glm::value_ptr(pointLightPositions[0]));
+  program_set_vec3(lightingProgram, "pointLights[0].ambient", 0.05, 0.05, 0.05);
+  program_set_vec3(lightingProgram, "pointLights[0].diffuse", 0.8, 0.8, 0.8);
+  program_set_vec3(lightingProgram, "pointLights[0].specular", 1.0, 1.0, 1.0);
+  program_set_f32(lightingProgram, "pointLights[0].constant", 1.0);
+  program_set_f32(lightingProgram, "pointLights[0].linear", 0.09);
+  program_set_f32(lightingProgram, "pointLights[0].quadratic", 0.032);
+
+  // spotlight
+  program_set_vec3(lightingProgram, "spotLight.position", glm::value_ptr(camera.get_position()));
+  program_set_vec3(lightingProgram, "spotLight.direction", glm::value_ptr(camera.get_front()));
+  program_set_vec3(lightingProgram, "spotLight.ambient", 0.0f, 0.0f, 0.0f);
+  program_set_vec3(lightingProgram, "spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+  program_set_vec3(lightingProgram, "spotLight.specular", 1.0f, 1.0f, 1.0f);
+  program_set_f32(lightingProgram, "spotLight.constant", 1.0f);
+  program_set_f32(lightingProgram, "spotLight.linear", 0.09f);
+  program_set_f32(lightingProgram, "spotLight.quadratic", 0.032f);
+  program_set_f32(lightingProgram, "spotLight.cutOff", glm::cos(glm::radians(10.0f)));
+  program_set_f32(lightingProgram, "spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
 
   // Material properties
   program_set_f32(lightingProgram, "material.shininess", 32.0);
@@ -281,17 +310,6 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   texture_bind(diffuse_map, 0);
   program_set_i32(lightingProgram, "material.specular", 1);
   texture_bind(specular_map, 1);
-
-  // Lighting properties
-  program_set_vec3(lightingProgram, "light.ambient", 0.2, 0.2, 0.2);
-  program_set_vec3(lightingProgram, "light.diffuse", 0.5, 0.5, 0.5);
-  program_set_vec3(lightingProgram, "light.specular", 1, 1, 1);
-
-  program_set_f32(lightingProgram, "light.constant", 1.0);
-  program_set_f32(lightingProgram, "light.linear", 0.09);
-  program_set_f32(lightingProgram, "light.quadratic", 0.032);
-  program_set_f32(lightingProgram, "light.cutOff", (f32)glm::cos(glm::radians(10.0)));
-  program_set_f32(lightingProgram, "light.outerCutOff", (f32)glm::cos(glm::radians(15.0)));
 
   program_set_mat4f(lightingProgram, "view", view_matrix);
 
