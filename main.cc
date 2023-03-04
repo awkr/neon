@@ -271,7 +271,7 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
 
   // Active shader programs before setting uniforms
   program_use(lightingProgram);
-  program_set_vec3(lightingProgram, "light.position", glm::value_ptr(lightPosition));
+  program_set_vec3(lightingProgram, "light.direction", -0.2, -1.0, -0.3);
   program_set_vec3(lightingProgram, "viewPosition", glm::value_ptr(camera.get_position()));
 
   // Material properties
