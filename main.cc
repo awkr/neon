@@ -47,7 +47,8 @@ const GLuint kNumVertices = 24;
 const GLuint kNumIndices = 36;
 GLuint lightingProgram;
 GLuint lightCubeProgram;
-Texture *texture;
+Texture *diffuse_map;
+Texture *specular_map;
 
 enum FrameState {
   FRAME_STATE_EMPTY = 0x0,
@@ -95,6 +96,15 @@ void init() {
   {
     auto ok = program_create(&lightCubeProgram, {{GL_VERTEX_SHADER, "shaders/light_cube.vert"},
                                                  {GL_FRAGMENT_SHADER, "shaders/light_cube.frag"}});
+    assert(ok);
+  }
+
+  {
+    auto ok = texture_create(&diffuse_map, "images/container2.png");
+    assert(ok);
+  }
+  {
+    auto ok = texture_create(&specular_map, "images/container2_specular.png");
     assert(ok);
   }
 
@@ -161,6 +171,10 @@ void init() {
     // Attribute: normal
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (any)offsetof(Vertex, normal));
     glEnableVertexAttribArray(1);
+    // Attribute: texture coordinate
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                          (any)offsetof(Vertex, texCoord));
+    glEnableVertexAttribArray(2);
 
     // The call to glVertexAttribPointer already registered the last bound VBO as the vertex
     // attribute's bound vertex buffer object
@@ -250,6 +264,7 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   glFrontFace(GL_CCW);
   glCullFace(GL_BACK);
   glEnable(GL_DEPTH_TEST);
+  glClearColor(0.25, 0.25, 0.25, 1.0);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   // Render the cube
@@ -260,10 +275,11 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   program_set_vec3(lightingProgram, "viewPosition", glm::value_ptr(camera.get_position()));
 
   // Material properties
-  program_set_vec3(lightingProgram, "material.ambient", 1.0, 0.5, 0.31);
-  program_set_vec3(lightingProgram, "material.diffuse", 1.0, 0.5, 0.31);
-  program_set_vec3(lightingProgram, "material.specular", 0.5, 0.5, 0.5);
   program_set_f32(lightingProgram, "material.shininess", 32.0);
+  program_set_i32(lightingProgram, "material.diffuse", 0);
+  texture_bind(diffuse_map, 0);
+  program_set_i32(lightingProgram, "material.specular", 1);
+  texture_bind(specular_map, 1);
 
   // Lighting properties
   program_set_vec3(lightingProgram, "light.ambient", 0.2, 0.2, 0.2);
