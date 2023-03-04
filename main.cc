@@ -256,7 +256,7 @@ f32 destYaw = camera.get_yaw();
 f32 duration = 0.4;
 f32 elapsed = 0;
 
-glm::vec3 lightPosition = {0.25, 0.5, 2};
+glm::vec3 lightPosition = {0.25, 0.25, 2};
 
 void render(u32 width, u32 height, const f32 *view_matrix) {
   glViewport(0, 0, width, height);
@@ -271,7 +271,8 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
 
   // Active shader programs before setting uniforms
   program_use(lightingProgram);
-  program_set_vec3(lightingProgram, "light.direction", -0.2, -1.0, -0.3);
+  program_set_vec3(lightingProgram, "light.position", glm::value_ptr(lightPosition));
+  program_set_vec3(lightingProgram, "light.direction", glm::value_ptr(glm::vec3{0.0, 0.0, -1.0}));
   program_set_vec3(lightingProgram, "viewPosition", glm::value_ptr(camera.get_position()));
 
   // Material properties
@@ -286,6 +287,12 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   program_set_vec3(lightingProgram, "light.diffuse", 0.5, 0.5, 0.5);
   program_set_vec3(lightingProgram, "light.specular", 1, 1, 1);
 
+  program_set_f32(lightingProgram, "light.constant", 1.0);
+  program_set_f32(lightingProgram, "light.linear", 0.09);
+  program_set_f32(lightingProgram, "light.quadratic", 0.032);
+  program_set_f32(lightingProgram, "light.cutOff", (f32)glm::cos(glm::radians(10.0)));
+  program_set_f32(lightingProgram, "light.outerCutOff", (f32)glm::cos(glm::radians(15.0)));
+
   program_set_mat4f(lightingProgram, "view", view_matrix);
 
   glm::mat4 projection(1.0);
@@ -296,10 +303,19 @@ void render(u32 width, u32 height, const f32 *view_matrix) {
   {
     glm::mat4 model(1.0);
     program_set_mat4f(lightingProgram, "model", glm::value_ptr(model));
+
+    glBindVertexArray(VAOs[VAO_CUBE]);
+    glDrawElements(GL_TRIANGLES, kNumIndices, GL_UNSIGNED_INT, nullptr);
   }
 
-  glBindVertexArray(VAOs[VAO_CUBE]);
-  glDrawElements(GL_TRIANGLES, kNumIndices, GL_UNSIGNED_INT, nullptr);
+  {
+    glm::mat4 model(1.0);
+    model = glm::translate(model, {0, -6, -3});
+    program_set_mat4f(lightingProgram, "model", glm::value_ptr(model));
+
+    glBindVertexArray(VAOs[VAO_CUBE]);
+    glDrawElements(GL_TRIANGLES, kNumIndices, GL_UNSIGNED_INT, nullptr);
+  }
 
   { // Render the lamp
     program_use(lightCubeProgram);
@@ -406,7 +422,7 @@ void *update_thread_main(void *args) {
 
           // Check current and destination values not the duration
           if (fabs(currentPitch - destPitch) > 0.0001f || fabs(currentYaw - destYaw) > 0.0001f) {
-            elapsed += tick * 0.6f;
+            elapsed += tick * 1.6f;
             f32 pitch = lerp(currentPitch, destPitch, ease_out_sine(elapsed));
             f32 yaw = lerp(currentYaw, destYaw, ease_out_sine(elapsed));
             // Or linear

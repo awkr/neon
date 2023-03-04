@@ -10,6 +10,7 @@ void program_destroy(GLuint program);
 GLint program_get_uniform_location(GLuint program, const char *name);
 void program_set_i32(GLuint program, const char *name, i32 a);
 void program_set_f32(GLuint program, const char *name, f32 a);
+void program_set_f64(GLuint program, const char *name, f64 a);
 void program_set_bool(GLuint program, const char *name, bool a);
 void program_set_vec3(GLuint program, const char *name, const GLfloat *a);
 void program_set_vec3(GLuint program, const char *name, GLfloat x, GLfloat y, GLfloat z);

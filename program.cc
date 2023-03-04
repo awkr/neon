@@ -97,6 +97,10 @@ void program_set_f32(GLuint program, const char *name, f32 a) {
   glUniform1f(program_get_uniform_location(program, name), a);
 }
 
+void program_set_f64(GLuint program, const char *name, f64 a) {
+  glUniform1d(program_get_uniform_location(program, name), a);
+}
+
 void program_set_bool(GLuint program, const char *name, bool a) {
   glUniform1i(program_get_uniform_location(program, name), a);
 }
