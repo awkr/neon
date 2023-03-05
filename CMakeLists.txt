@@ -14,9 +14,13 @@ find_package(OpenGL REQUIRED)
 add_subdirectory(third-party/stb)
 add_subdirectory(third-party/glm)
 
+SET(BUILD_SHARED_LIBS OFF CACHE BOOL "")
+SET(ASSIMP_BUILD_TESTS OFF CACHE BOOL "")
+add_subdirectory(third-party/assimp)
+
 add_executable(${PROJECT_NAME} main.cc filesystem.cc program.cc texture.cc message_queue.h event.cc input.cc camera.cc)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC SDL2-static ${OPENGL_gl_LIBRARY} stb glm)
+target_link_libraries(${PROJECT_NAME} PUBLIC SDL2-static ${OPENGL_gl_LIBRARY} stb glm assimp)
 
 if (APPLE)
     if (IOS)

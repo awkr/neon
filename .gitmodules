@@ -10,3 +10,6 @@
 [submodule "third-party/SDL"]
 	path = third-party/SDL
 	url = git@github.com:libsdl-org/SDL.git
+[submodule "third-party/assimp"]
+	path = third-party/assimp
+	url = git@github.com:assimp/assimp.git
